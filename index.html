@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#f97316" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gatinhos" />
+    <link rel="icon" href="/gatinhos/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/gatinhos/icon-192.png" />
+    <title>Gatinhos</title>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div id="title"></div>
+        <div id="timer">00:00</div>
+      </header>
+      <main><div id="board" role="grid" aria-label="Tabuleiro"></div></main>
+      <section id="hint" hidden></section>
+      <nav id="bar">
+        <button id="undo" aria-label="Desfazer">↶</button>
+        <button id="redo" aria-label="Refazer">↷</button>
+        <button id="hintBtn">💡 Dica</button>
+        <button id="restart" aria-label="Reiniciar">⟲</button>
+        <button id="autox" aria-pressed="true" title="Auto-X">Auto✕</button>
+        <button id="symbols" aria-pressed="false" title="Símbolos nas cores">◆</button>
+      </nav>
+      <div id="overlay" hidden></div>
+    </div>
+    <script type="module" src="/src/ui/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,167 @@
+import { getHint, type Hint } from './hint';
+import type { Mark, Puzzle } from './types';
+import { conflictIndexes, touches } from './validator';
+
+export interface Change {
+  index: number;
+  before: Mark;
+  after: Mark;
+}
+
+export interface GameState {
+  puzzle: Puzzle;
+  cells: Mark[];
+  history: Change[][];
+  redo: Change[][];
+  autoX: boolean;
+  hintsUsed: number;
+  startedAt: number;
+  finishedAt: number | null;
+  won: boolean;
+  lastMove: number | null;
+  /** dica em andamento: nível 1–3 (3 = mostra Aplicar) */
+  hint: { level: 1 | 2 | 3; data: Hint } | null;
+}
+
+const EMPTY: Mark = { state: 'empty' };
+
+export function newGame(puzzle: Puzzle, opts: { autoX?: boolean; now?: number } = {}): GameState {
+  return {
+    puzzle,
+    cells: Array.from({ length: puzzle.size * puzzle.size }, () => ({ ...EMPTY })),
+    history: [],
+    redo: [],
+    autoX: opts.autoX ?? true,
+    hintsUsed: 0,
+    startedAt: opts.now ?? Date.now(),
+    finishedAt: null,
+    won: false,
+    lastMove: null,
+    hint: null,
+  };
+}
+
+const pos = (g: GameState, i: number) => ({ r: Math.floor(i / g.puzzle.size), c: i % g.puzzle.size });
+
+/** Casas riscadas por um gato em `i`. */
+function shadowOf(g: GameState, i: number): number[] {
+  const n = g.puzzle.size;
+  const p = pos(g, i);
+  const out: number[] = [];
+  for (let j = 0; j < n * n; j++) {
+    if (j === i) continue;
+    const q = pos(g, j);
+    if (q.r === p.r || q.c === p.c || g.puzzle.regions[q.r][q.c] === g.puzzle.regions[p.r][p.c] || touches(p, q)) out.push(j);
+  }
+  return out;
+}
+
+/** Aplica um conjunto de mudanças como UMA entrada de histórico. */
+function commit(g: GameState, changes: Change[], last: number | null): GameState {
+  const real = changes.filter((c) => c.before.state !== c.after.state || !!c.before.auto !== !!c.after.auto);
+  if (!real.length) return g;
+  const cells = g.cells.slice();
+  for (const c of real) cells[c.index] = { ...c.after };
+  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null });
+}
+
+function finalize(g: GameState, now = Date.now()): GameState {
+  const cats = g.cells.filter((m) => m.state === 'cat').length;
+  const winning = cats === g.puzzle.size && conflictIndexes(g.puzzle, g.cells).size === 0;
+  if (winning && !g.won) return { ...g, won: true, finishedAt: now, hint: null };
+  return g;
+}
+
+export function conflicts(g: GameState): Set<number> {
+  return conflictIndexes(g.puzzle, g.cells);
+}
+
+/** Toque: vazio → X → gato → vazio. */
+export function tap(g: GameState, i: number): GameState {
+  if (g.won) return g;
+  const before = g.cells[i];
+  const changes: Change[] = [];
+  const set = (index: number, after: Mark) => changes.push({ index, before: g.cells[index], after });
+  if (before.state === 'empty') set(i, { state: 'x' });
+  else if (before.state === 'x') {
+    set(i, { state: 'cat' });
+    if (g.autoX) for (const j of shadowOf(g, i)) if (g.cells[j].state === 'empty') set(j, { state: 'x', auto: true });
+  } else {
+    set(i, { state: 'empty' });
+    if (g.autoX) {
+      // Remove só os X automáticos que ficaram sem nenhum gato que os justifique.
+      const remaining = g.cells.map((m, j) => (m.state === 'cat' && j !== i ? j : -1)).filter((j) => j >= 0);
+      const justified = new Set(remaining.flatMap((j) => shadowOf(g, j)));
+      g.cells.forEach((m, j) => {
+        if (m.state === 'x' && m.auto && !justified.has(j)) set(j, { ...EMPTY });
+      });
+    }
+  }
+  return commit(g, changes, i);
+}
+
+/** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatos (nem X). */
+export function dragX(g: GameState, path: number[]): GameState {
+  if (g.won) return g;
+  const seen = new Set<number>();
+  const changes: Change[] = [];
+  for (const i of path) {
+    if (seen.has(i) || g.cells[i].state !== 'empty') continue;
+    seen.add(i);
+    changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
+  }
+  return commit(g, changes, path.length ? path[path.length - 1] : null);
+}
+
+export function undo(g: GameState): GameState {
+  const entry = g.history[g.history.length - 1];
+  if (!entry || g.won) return g;
+  const cells = g.cells.slice();
+  for (const c of entry) cells[c.index] = { ...c.before };
+  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null };
+}
+
+export function redo(g: GameState): GameState {
+  const entry = g.redo[g.redo.length - 1];
+  if (!entry || g.won) return g;
+  const cells = g.cells.slice();
+  for (const c of entry) cells[c.index] = { ...c.after };
+  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null });
+}
+
+export function restart(g: GameState, now = Date.now()): GameState {
+  return newGame(g.puzzle, { autoX: g.autoX, now });
+}
+
+export function setAutoX(g: GameState, on: boolean): GameState {
+  return { ...g, autoX: on };
+}
+
+export function canHint(g: GameState): boolean {
+  return !g.won;
+}
+
+/** Toque no botão de dica: 1 = área, 2 = frase, 3 = botão Aplicar. Não conta em hintsUsed. */
+export function pressHint(g: GameState): GameState {
+  if (!canHint(g)) return g;
+  if (!g.hint) {
+    const data = getHint(g.puzzle, g.cells, g.lastMove);
+    return data ? { ...g, hint: { level: 1, data } } : g;
+  }
+  if (g.hint.level === 3) return g;
+  return { ...g, hint: { ...g.hint, level: (g.hint.level + 1) as 2 | 3 } };
+}
+
+/** Aplicar (só no nível 3): marca o passo numa única entrada de histórico; hintsUsed +1. */
+export function applyHint(g: GameState): GameState {
+  const h = g.hint;
+  if (!h || h.level !== 3 || !h.data.apply || g.won) return g;
+  const changes: Change[] = [];
+  for (const i of h.data.apply.xs) if (g.cells[i].state !== 'x') changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
+  for (const i of h.data.apply.cats) if (g.cells[i].state !== 'cat') changes.push({ index: i, before: g.cells[i], after: { state: 'cat' } });
+  const next = commit(g, changes, changes[0]?.index ?? g.lastMove);
+  return next === g ? g : { ...next, hintsUsed: g.hintsUsed + 1 };
+}
+
+export const isWon = (g: GameState) => g.won;
+export const elapsedMs = (g: GameState, now = Date.now()) => (g.finishedAt ?? now) - g.startedAt;
