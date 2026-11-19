@@ -6,6 +6,8 @@ export interface Puzzle {
   /** solution[r] = coluna do gato na linha r */
   solution: number[];
   difficulty?: Difficulty;
+  /** gatinhos já revelados no início (dificuldades altas); índices row-major */
+  givens?: number[];
 }
 
 export type Difficulty = 'facil' | 'medio' | 'dificil' | 'expert';

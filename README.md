@@ -47,6 +47,17 @@ Quando todos os gatinhos forem achados, a fase termina. 🎉
 - **Acabaram as tentativas?** Você escolhe: **Reiniciar o quadro** (recomendado) ou **Continuar mesmo assim**.
 - **Venceu?** Um aviso mostra seu tempo e as dicas usadas, com botão para a **próxima fase** (e um ✕ para fechar e admirar o tabuleiro).
 
+### ✨ Poderes
+
+O botão **✨** (com o número de cargas) abre os poderes. Por enquanto existe o **Revelar um gatinho**: mostra um gatinho que ainda não foi achado (o da cor mais difícil de deduzir), sem gastar tentativa, e dá para desfazer. Você começa com 2 cargas e ganha **+1 a cada 3 níveis concluídos**.
+
+### 📈 Progressão
+
+- **Níveis 1–30:** lotes de 5 níveis, o tabuleiro cresce de **5×5 → 6×6 → … → 10×10** (Fácil → Médio → Difícil).
+- **Depois do 30:** a maioria é **10×10** (todo nível múltiplo de 5 é 9×9, um respiro) e, **a cada 10 níveis, o patamar sobe**: 31–40 Difícil, 41+ Expert.
+- **Gatinho inicial:** nas dificuldades altas (a partir do nível 21) a fase pode já começar com 1 gatinho revelado, marcado com contorno tracejado. A chance é 50% nos níveis 21–30, 60% nos 31–40 e cai 15 pontos a cada 10 níveis, chegando a 0 no nível 71 — um empurrãozinho que some conforme você evolui. O sorteio é fixo por nível (igual em qualquer aparelho).
+- **Salvo no seu aparelho:** o nível atual, a partida em andamento, as cargas de poder, níveis concluídos e melhores tempos ficam no `localStorage` do navegador. Cada aparelho tem o próprio progresso, sem conta nem servidor.
+
 ## 💡 3 dicas para começar
 
 1. **Comece pelas cores pequenas.** Uma região com poucas casas (ou numa linha/coluna só) tem pouquíssimos lugares possíveis para o gatinho.

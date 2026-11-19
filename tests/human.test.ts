@@ -49,7 +49,7 @@ describe('CA10 técnicas T1–T7', () => {
 
 describe('CA11 classificação', () => {
   it('difficulty = técnica mais difícil; tamanhos respeitam a tabela; irresolvíveis descartados', () => {
-    for (const [level, diff] of [[1, 'facil'], [40, 'medio'], [60, 'dificil'], [90, 'expert']] as [number, Difficulty][]) {
+    for (const [level, diff] of [[1, 'facil'], [18, 'medio'], [25, 'dificil'], [45, 'expert']] as [number, Difficulty][]) {
       const r = generateLevel(level);
       expect(r.ok).toBe(true);
       if (!r.ok) continue;
@@ -74,7 +74,7 @@ describe('CA11 classificação', () => {
 
 describe('CA12 progressão determinística', () => {
   it('fase K idêntica em duas execuções; seed só depende de K', () => {
-    for (const k of [1, 35, 70, 95]) {
+    for (const k of [1, 22, 33, 52]) {
       expect(generateLevel(k)).toEqual(generateLevel(k));
       expect(seedForLevel(k)).toBe(seedForLevel(k));
     }
@@ -92,7 +92,7 @@ describe('CA12 progressão determinística', () => {
     }
   });
   it('fases geradas 1–100 (amostra de cada faixa) respeitam a dificuldade da faixa', () => {
-    for (const k of [10, 30, 31, 55, 56, 80, 81, 100]) {
+    for (const k of [10, 20, 30, 31, 41, 60]) {
       const r = generateLevel(k);
       expect(r.ok).toBe(true);
       if (r.ok) expect(r.puzzle.difficulty).toBe(specForLevel(k).difficulty);

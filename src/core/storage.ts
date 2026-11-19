@@ -14,6 +14,7 @@ export interface Saved {
   redo: GameState['redo'];
   hintsUsed: number;
   mistakes?: number;
+  powersUsed?: number;
   continued?: boolean;
   startedAt: number;
   finishedAt: number | null;
@@ -39,6 +40,7 @@ export function serialize(level: number, g: GameState, symbols: boolean): Saved 
     redo: g.redo,
     hintsUsed: g.hintsUsed,
     mistakes: g.mistakes,
+    powersUsed: g.powersUsed,
     continued: g.continued,
     startedAt: g.startedAt,
     finishedAt: g.finishedAt,
@@ -73,7 +75,8 @@ function validPuzzle(p: Puzzle): boolean {
     p.regions.every((row) => Array.isArray(row) && row.length === n && row.every((v) => Number.isInteger(v) && v >= 0 && v < n)) &&
     Array.isArray(p.solution) &&
     p.solution.length === n &&
-    p.solution.every((c) => Number.isInteger(c) && c >= 0 && c < n)
+    p.solution.every((c) => Number.isInteger(c) && c >= 0 && c < n) &&
+    (p.givens === undefined || (Array.isArray(p.givens) && p.givens.every((i) => Number.isInteger(i) && i >= 0 && i < n * n)))
   );
 }
 
@@ -101,6 +104,7 @@ export function load(kv: KV): Loaded | null {
       redo: s.redo,
       hintsUsed: s.hintsUsed,
       mistakes: Number.isInteger(s.mistakes) && s.mistakes! >= 0 ? s.mistakes! : 0,
+      powersUsed: Number.isInteger(s.powersUsed) && s.powersUsed! >= 0 ? s.powersUsed! : 0,
       continued: !!s.continued,
       finishedAt: typeof s.finishedAt === 'number' ? s.finishedAt : null,
       won: !!s.won,

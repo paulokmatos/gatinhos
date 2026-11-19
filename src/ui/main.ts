@@ -1,10 +1,11 @@
 import './style.css';
-import { applyHint, attemptsLeft, canHint, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
 import { findErrors } from '../core/hint';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL } from '../core/progression';
+import { EARN_EVERY, loadProgress, recordCompletion, saveProgress, spendReveal, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { catCheer, catFace, catHint } from './cat';
@@ -22,6 +23,8 @@ let loading = false;
 let prevStates: string[] | null = null;
 let prevPuzzle: Puzzle | null = null;
 let winClosed = false;
+let showPowers = false;
+let progress: Progress = loadProgress(kv);
 
 const fmt = (ms: number) => {
   const s = Math.floor(ms / 1000);
@@ -59,7 +62,7 @@ function render(): void {
       const c = i % n;
       const reg = g.puzzle.regions[r][c];
       const fresh = sameBoard && prevStates![i] !== m.state;
-      const cls = ['cell', g.armed === i ? 'armed' : '', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
+      const cls = ['cell', g.armed === i ? 'armed' : '', g.puzzle.givens?.includes(i) ? 'given' : '', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
       const sym = symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : '';
       const x = m.state === 'x' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_SVG}</span></span>` : '';
       const cat = m.state === 'cat' ? `<span class="layer"><span class="${fresh ? 'cat-in' : ''}" style="display:block;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${catFace(36)}</span></span>${fresh ? `<span class="ring"></span>${SPARKLES}` : ''}` : '';
@@ -97,10 +100,22 @@ function render(): void {
     hint.innerHTML = `${catHint(60)}<div class="bubble"><span>${text}</span>${h.level === 3 && h.data.apply ? '<button id="apply" class="apply">Aplicar</button>' : ''}</div>`;
   } else hint.hidden = true;
 
+  $('powerCount').textContent = String(progress.powers.reveal);
+  const sheet = $('sheet');
+  if (showPowers && !g.won) {
+    const can = progress.powers.reveal > 0 && canHint(g);
+    sheet.hidden = false;
+    sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Poderes"><button id="closePowers" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Poderes</h2>
+      <div class="power-item"><span class="ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" fill="currentColor"/></svg></span>
+      <span class="txt"><b>Revelar um gatinho (${progress.powers.reveal})</b>Mostra um gatinho que ainda não foi achado. Não gasta tentativa.</span>
+      <button id="useReveal" class="use" ${can ? '' : 'disabled'}>Usar</button></div>
+      <p class="sheet-note">Ganhe +1 a cada ${EARN_EVERY} níveis concluídos. Concluídos até agora: ${progress.completed}.</p></div>`;
+  } else sheet.hidden = true;
+
   const ov = $('overlay');
   if (g.won && !winClosed) {
     ov.hidden = false;
-    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Fase concluída"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas usadas: ${g.hintsUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próxima fase</button></div>`;
+    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Fase concluída"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas: ${g.hintsUsed} · Poderes: ${g.powersUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próxima fase</button></div>`;
   } else if (isLost(g)) {
     ov.hidden = false;
     ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Tentativas esgotadas"><span class="bob">${catFace(96)}</span><h2>Acabaram as tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste quadro.</p><button id="again" class="big">Reiniciar o quadro</button><button id="keep" class="ghost">Continuar mesmo assim</button></div>`;
@@ -108,6 +123,10 @@ function render(): void {
 }
 
 function update(next: GameState): void {
+  if (next.won && game && !game.won) {
+    progress = recordCompletion(progress, level, elapsedMs(next));
+    saveProgress(kv, progress);
+  }
   game = next;
   save(kv, level, game, symbols);
   render();
@@ -124,6 +143,7 @@ async function startLevel(k: number): Promise<void> {
   loading = false;
   prevStates = null;
   winClosed = false;
+  showPowers = false;
   update(newGame(puzzle));
 }
 
@@ -171,6 +191,18 @@ document.addEventListener('click', (e) => {
   else if (id === 'apply') update(applyHint(game));
   else if (id === 'symbols') { symbols = !symbols; update(game); }
   else if (id === 'next') void startLevel(level + 1);
+  else if (id === 'powersBtn') { showPowers = true; render(); }
+  else if (id === 'closePowers') { showPowers = false; render(); }
+  else if (id === 'useReveal') {
+    const spent = spendReveal(progress);
+    const next = revealCat(game);
+    if (spent && next !== game) {
+      progress = spent;
+      saveProgress(kv, progress);
+      showPowers = false;
+      update(next);
+    }
+  }
 });
 
 setInterval(() => {
@@ -184,4 +216,4 @@ if (saved) {
   game = saved.game;
   winClosed = false;
   render();
-} else void startLevel(1);
+} else void startLevel(progress.maxLevel);

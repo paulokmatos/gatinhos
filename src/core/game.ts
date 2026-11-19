@@ -1,4 +1,5 @@
 import { getHint, type Hint } from './hint';
+import { stateFromMarks } from './human';
 import type { Mark, Puzzle } from './types';
 import { conflictIndexes } from './validator';
 
@@ -18,6 +19,8 @@ export interface GameState {
   hintsUsed: number;
   /** erros do jogador (X em casa de gatinho); ao chegar em MAX_ATTEMPTS a fase é perdida */
   mistakes: number;
+  /** poderes usados nesta fase */
+  powersUsed: number;
   /** casa que recebeu o toque anterior: um 2º toque seguido nela é uma tentativa */
   armed: number | null;
   /** o jogador escolheu continuar depois de perder */
@@ -39,11 +42,12 @@ const EMPTY: Mark = { state: 'empty' };
 export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState {
   return {
     puzzle,
-    cells: Array.from({ length: puzzle.size * puzzle.size }, () => ({ ...EMPTY })),
+    cells: Array.from({ length: puzzle.size * puzzle.size }, (_, i) => (puzzle.givens?.includes(i) ? { state: 'cat' as const } : { ...EMPTY })),
     history: [],
     redo: [],
     hintsUsed: 0,
     mistakes: 0,
+    powersUsed: 0,
     armed: null,
     continued: false,
     startedAt: opts.now ?? Date.now(),
@@ -126,6 +130,32 @@ export function redo(g: GameState): GameState {
   const cells = g.cells.slice();
   for (const c of entry) cells[c.index] = { ...c.after };
   return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null, armed: null });
+}
+
+/**
+ * Poder "Revelar um gatinho": mostra um gatinho ainda não achado, sem gastar tentativa.
+ * Escolhe o da cor com mais casas livres (a mais difícil de deduzir), empate pela menor posição.
+ * Entra no histórico como uma única jogada.
+ */
+export function revealCat(g: GameState): GameState {
+  if (locked(g)) return g;
+  const n = g.puzzle.size;
+  const s = stateFromMarks(g.puzzle, g.cells);
+  let best = -1;
+  let bestScore = -1;
+  g.puzzle.solution.forEach((c, r) => {
+    const i = r * n + c;
+    if (g.cells[i].state === 'cat') return;
+    const region = g.puzzle.regions[r][c];
+    const score = s.cand.filter((v, j) => v && s.reg[j] === region).length;
+    if (score > bestScore) {
+      best = i;
+      bestScore = score;
+    }
+  });
+  if (best < 0) return g;
+  const next = commit(g, [{ index: best, before: g.cells[best], after: { state: 'cat' } }], best);
+  return next === g ? g : { ...next, powersUsed: g.powersUsed + 1 };
 }
 
 export function continueAfterLoss(g: GameState): GameState {
