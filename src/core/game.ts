@@ -60,14 +60,32 @@ export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState 
 
 const pos = (g: GameState, i: number) => ({ r: Math.floor(i / g.puzzle.size), c: i % g.puzzle.size });
 
-/** Aplica um conjunto de mudanças como UMA entrada de histórico. */
+/**
+ * Aplica mudanças. Gatinho é escrita do código (não é estado que o jogador altera): só as marcações
+ * do jogador (X) entram no histórico, numa única entrada. Quem desfaz/refaz nunca mexe em gatinho.
+ */
 function commit(g: GameState, changes: Change[], last: number | null): GameState {
   const real = changes.filter((c) => c.before.state !== c.after.state);
   if (!real.length) return g;
   const cells = g.cells.slice();
   for (const c of real) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null, armed: null });
+  const marks = real.filter((c) => c.before.state !== 'cat' && c.after.state !== 'cat');
+  return finalize({
+    ...g,
+    cells,
+    history: marks.length ? [...g.history, marks] : g.history,
+    redo: marks.length ? [] : g.redo,
+    lastMove: last,
+    hint: null,
+    armed: null,
+  });
 }
+
+/** Mudanças de uma entrada que ainda valem agora (casas que viraram gatinho não voltam atrás). */
+const effective = (g: GameState, entry: Change[]) => entry.filter((c) => g.cells[c.index].state !== 'cat');
+
+export const canUndo = (g: GameState) => !locked(g) && g.history.some((e) => effective(g, e).length > 0);
+export const canRedo = (g: GameState) => !locked(g) && g.redo.some((e) => effective(g, e).length > 0);
 
 function finalize(g: GameState, now = Date.now()): GameState {
   const cats = g.cells.filter((m) => m.state === 'cat').length;
@@ -117,19 +135,31 @@ export function dragX(g: GameState, path: number[]): GameState {
 }
 
 export function undo(g: GameState): GameState {
-  const entry = g.history[g.history.length - 1];
-  if (!entry || locked(g)) return g;
-  const cells = g.cells.slice();
-  for (const c of entry) cells[c.index] = { ...c.before };
-  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null, armed: null };
+  if (locked(g)) return g;
+  const history = g.history.slice();
+  while (history.length) {
+    const entry = history.pop()!;
+    const todo = effective(g, entry);
+    if (!todo.length) continue; // jogada que virou gatinho: nada a desfazer
+    const cells = g.cells.slice();
+    for (const c of todo) cells[c.index] = { ...c.before };
+    return { ...g, cells, history, redo: [...g.redo, todo], hint: null, lastMove: null, armed: null };
+  }
+  return g;
 }
 
 export function redo(g: GameState): GameState {
-  const entry = g.redo[g.redo.length - 1];
-  if (!entry || locked(g)) return g;
-  const cells = g.cells.slice();
-  for (const c of entry) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null, armed: null });
+  if (locked(g)) return g;
+  const stack = g.redo.slice();
+  while (stack.length) {
+    const entry = stack.pop()!;
+    const todo = effective(g, entry);
+    if (!todo.length) continue;
+    const cells = g.cells.slice();
+    for (const c of todo) cells[c.index] = { ...c.after };
+    return finalize({ ...g, cells, redo: stack, history: [...g.history, todo], hint: null, armed: null });
+  }
+  return g;
 }
 
 /**

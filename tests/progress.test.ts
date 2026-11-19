@@ -80,7 +80,7 @@ describe('gatinho inicial (givens)', () => {
 });
 
 describe('poder: revelar um gatinho', () => {
-  it('revela um gatinho certo, sem gastar tentativa, numa jogada desfazível', () => {
+  it('revela um gatinho certo, sem gastar tentativa; desfazer não o remove', () => {
     let g = newGame(P);
     g = revealCat(g);
     const cats = g.cells.map((m, i) => (m.state === 'cat' ? i : -1)).filter((i) => i >= 0);
@@ -88,8 +88,8 @@ describe('poder: revelar um gatinho', () => {
     expect(P.solution[Math.floor(cats[0] / P.size)]).toBe(cats[0] % P.size);
     expect(g.mistakes).toBe(0);
     expect(g.powersUsed).toBe(1);
-    expect(g.history).toHaveLength(1);
-    expect(undo(g).cells.every((m) => m.state === 'empty')).toBe(true);
+    expect(g.history).toHaveLength(0);
+    expect(undo(g)).toBe(g);
   });
   it('revela todos, um por vez, e vence; depois não faz nada', () => {
     let g = newGame(P);

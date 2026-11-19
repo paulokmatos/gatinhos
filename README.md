@@ -28,7 +28,7 @@ Quando todos os gatinhos forem achados, a fase termina. 🎉
 - **Toque numa casa** para riscar ✕ (o ✕ é só o *seu rascunho*: nunca é marcado sozinho e pode estar errado).
 - **Dois toques seguidos na mesma casa = 1 tentativa:** se há um gatinho ali, ele aparece 🐱; se não há, você perde uma tentativa. Ter ou não um ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste** o dedo (ou o mouse) sobre casas vazias para riscar várias de uma vez.
-- **Desfazer / Refazer** voltam e repetem suas jogadas.
+- **Desfazer / Refazer** voltam e repetem só as suas marcações ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
 - **Reiniciar** (canto superior esquerdo) limpa o quadro.
 - **◇** (canto superior direito) liga os **símbolos nas cores**, para ajudar quem tem dificuldade de distinguir tons.
 
@@ -62,7 +62,7 @@ O botão **✨** (com o número de cargas) abre os poderes. Por enquanto existe 
 
 1. **Comece pelas cores pequenas.** Uma região com poucas casas (ou numa linha/coluna só) tem pouquíssimos lugares possíveis para o gatinho.
 2. **Gatinho achado = risque ao redor.** Na linha, na coluna, na mesma cor e nas 8 casas vizinhas, ninguém mais pode ficar. Marque ✕ nelas para limpar a cabeça.
-3. **Travou? Peça a Dica.** Toque em **Dica** até 3 vezes: 1º mostra *onde olhar*, 2º explica *o raciocínio*, 3º oferece **Aplicar**. Só aplicar conta como dica usada.
+3. **Travou? Peça a Dica.** Toque em **Dica** até 3 vezes: o 1º mostra *o porquê* (as casas da premissa ficam destacadas, ex.: "a cor Jabuticaba só tem casas na linha 5"), o 2º diz *o que fazer* (as casas a riscar ficam em laranja) e o 3º oferece **Aplicar**. Só aplicar conta como dica usada.
 
 ---
 

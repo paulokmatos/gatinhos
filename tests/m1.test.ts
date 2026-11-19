@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHint, dragX, newGame, redo, restart, tap, undo } from '../src/core/game';
+import { applyHint, canRedo, canUndo, dragX, newGame, redo, restart, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { countSolutions } from '../src/core/solver';
 import type { Mark } from '../src/core/types';
@@ -91,18 +91,27 @@ describe('CA04 X é rascunho do jogador; desfazer, refazer e reiniciar', () => {
     g = tap(g, catCell(1)); // X numa casa de gatinho: rascunho errado, permitido
     expect(g.cells[catCell(1)].state).toBe('x');
   });
-  it('desfazer/refazer em qualquer ordem', () => {
+  it('desfazer/refazer só mexem em marcações X; gatinho nunca some', () => {
     let g = newGame(P);
-    g = tap(tap(g, catCell(0)), catCell(0));
+    g = tap(tap(g, catCell(0)), catCell(0)); // gatinho revelado
     g = tap(g, wrong(3));
+    g = tap(g, wrong(4));
     const snap = JSON.stringify(g.cells);
-    g = undo(undo(undo(g)));
-    expect(g.cells.every((m) => m.state === 'empty')).toBe(true);
-    g = redo(g);
-    g = undo(g);
-    g = redo(redo(redo(g)));
+    g = undo(undo(g));
+    expect(g.cells[wrong(3)].state).toBe('empty');
+    expect(g.cells[wrong(4)].state).toBe('empty');
+    expect(g.cells[catCell(0)].state).toBe('cat');
+    expect(undo(g)).toBe(g); // o X que virou gatinho não é desfeito
+    g = redo(redo(g));
     expect(JSON.stringify(g.cells)).toBe(snap);
     expect(redo(g)).toBe(g);
+  });
+  it('canUndo ignora jogadas que viraram gatinho', () => {
+    let g = tap(tap(newGame(P), catCell(0)), catCell(0));
+    expect(canUndo(g)).toBe(false);
+    g = tap(g, wrong(1));
+    expect(canUndo(g)).toBe(true);
+    expect(canRedo(undo(g))).toBe(true);
   });
   it('reiniciar limpa tabuleiro e histórico', () => {
     let g = tap(newGame(P), 3);

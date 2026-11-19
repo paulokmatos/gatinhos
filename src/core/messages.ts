@@ -14,38 +14,55 @@ const colors = (rs: number[]) => (rs.length > 1 ? 'cores ' : 'cor ') + list(rs.m
 function unitName(u: { kind: 'row' | 'col' | 'region'; index: number }): string {
   return u.kind === 'region' ? `a cor ${color(u.index)}` : `a ${u.kind === 'row' ? 'linha' : 'coluna'} ${u.index + 1}`;
 }
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Texto da dica (nível 2). Linhas e colunas aparecem a partir de 1. Máximo de 2 frases. */
-export function hintMessage(d: Deduction, size: number): string {
-  const cell = (i: number) => ({ r: Math.floor(i / size), c: i % size });
+/**
+ * Nível 1 da dica: a PREMISSA, o fato que o jogador pode conferir no tabuleiro (casas destacadas).
+ * Linhas e colunas aparecem a partir de 1.
+ */
+export function areaMessage(d: Deduction, size = 0): string {
+  const cell = (i: number) => ({ r: Math.floor(i / size) + 1, c: (i % size) + 1 });
   switch (d.tech) {
-    case 1: {
-      const { r, c } = cell(d.cats[0]);
-      return `Só sobrou uma casa livre para ${unitName(d.unit!)}: linha ${r + 1}, coluna ${c + 1}. Coloque um gato nela.`;
-    }
+    case 1:
+      return `${cap(unitName(d.unit!))} só tem uma casa livre.`;
     case 2:
-      return `A ${colors(d.regions)} só cabe na ${lineLoc(d.lineKind, d.lines)} — risque as outras casas dessa ${lineWord(d.lineKind, 1)}.`;
+      return `A ${colors(d.regions)} só tem casas na ${lineLoc(d.lineKind, d.lines)}.`;
     case 3:
-      return `Na ${lineLoc(d.lineKind, d.lines)} só há casas da ${colors(d.regions)} — risque as outras casas dessa cor.`;
+      return `Na ${lineLoc(d.lineKind, d.lines)} só há casas da ${colors(d.regions)}.`;
     case 4: {
       const { r, c } = cell(d.xs[0]);
-      return `Um gato na linha ${r + 1}, coluna ${c + 1} deixaria ${unitName(d.unit!)} sem nenhuma casa — risque essa casa.`;
+      return `Imagine um gatinho na linha ${r}, coluna ${c}: ${unitName(d.unit!)} ficaria sem nenhuma casa livre.`;
     }
     case 5:
-      return `As ${colors(d.regions)} só cabem nas ${lineLoc(d.lineKind, d.lines)} — risque as outras casas ${d.lineKind === 'row' ? 'dessas linhas' : 'dessas colunas'}.`;
+      return `As ${colors(d.regions)} só têm casas nas ${lineLoc(d.lineKind, d.lines)}.`;
     case 6:
-      return `As ${lineLoc(d.lineKind, d.lines)} só têm casas das ${colors(d.regions)} — risque as outras casas dessas cores.`;
+      return `As ${lineLoc(d.lineKind, d.lines)} só têm casas das ${colors(d.regions)}.`;
     case 7: {
       const { r, c } = cell(d.xs[0]);
-      return `Se houvesse um gato na linha ${r + 1}, coluna ${c + 1}, o tabuleiro travaria. Risque essa casa.`;
+      return `Imagine um gatinho na linha ${r}, coluna ${c}: ao riscar o que ele elimina, o tabuleiro trava.`;
     }
   }
 }
 
-/** Texto do nível 1 ("olhe estas 2 colunas"). */
-export function areaMessage(d: Deduction): string {
-  if (d.tech === 1 && d.unit) return d.unit.kind === 'region' ? `Olhe a cor ${color(d.unit.index)}.` : `Olhe a ${d.unit.kind === 'row' ? 'linha' : 'coluna'} ${d.unit.index + 1}.`;
-  if (d.tech === 2 || d.tech === 5) return `Olhe ${d.lines.length > 1 ? 'estas ' + d.lines.length : 'a'} ${lineWord(d.lineKind, d.lines.length)}${d.lines.length === 1 ? ' ' + nums(d.lines) : ''}.`;
-  if (d.tech === 3 || d.tech === 6) return `Olhe ${d.regions.length > 1 ? 'estas ' + d.regions.length + ' cores' : 'a cor ' + color(d.regions[0])}.`;
-  return 'Olhe a região destacada.';
+/** Nível 2: premissa + conclusão (o porquê e o que fazer). Máximo de 2 frases. */
+export function hintMessage(d: Deduction, size: number): string {
+  const premise = areaMessage(d, size);
+  switch (d.tech) {
+    case 1: {
+      const r = Math.floor(d.cats[0] / size) + 1;
+      const c = (d.cats[0] % size) + 1;
+      return `${premise} Ela fica na linha ${r}, coluna ${c}: coloque um gatinho lá.`;
+    }
+    case 2:
+      return `${premise} Então o gatinho da ${colors(d.regions)} está nela, e as outras casas dessa ${lineWord(d.lineKind, 1)} (que não são dessa cor) não podem ter gatinho: risque-as.`;
+    case 3:
+      return `${premise} Então o gatinho dessa ${lineWord(d.lineKind, 1)} é da ${colors(d.regions)}, e as casas dessa cor fora dela não podem ter gatinho: risque-as.`;
+    case 4:
+    case 7:
+      return `${premise} Então não pode haver gatinho ali: risque essa casa.`;
+    case 5:
+      return `${premise} Elas ocupam essas ${lineWord(d.lineKind, 2)}, então as casas de outras cores nelas não podem ter gatinho: risque-as.`;
+    case 6:
+      return `${premise} Os gatinhos dessas ${lineWord(d.lineKind, 2)} serão dessas cores, então as outras casas dessas cores, fora delas, não podem ter gatinho: risque-as.`;
+  }
 }

@@ -23,6 +23,8 @@ export interface Deduction {
   lineKind?: 'row' | 'col';
   lines: number[];
   regions: number[];
+  /** casas da premissa (o que o jogador deve olhar para entender o porquê) */
+  premise: number[];
   /** T1: unidade com uma só casa; T4: unidade que ficaria sem casas */
   unit?: { kind: UnitKind; index: number };
 }
@@ -127,6 +129,7 @@ function t1(s: HState): Deduction[] {
         xs: [],
         lines: [rowOf(s, c[0]), colOf(s, c[0])],
         regions: [s.reg[c[0]]],
+        premise: u.cells,
         unit: { kind: u.kind, index: u.index },
       });
   }
@@ -144,7 +147,7 @@ function t2(s: HState): Deduction[] {
       const lines = uniq(c.map(key));
       if (lines.length !== 1) continue;
       const xs = s.cand.map((v, i) => (v && key(i) === lines[0] && s.reg[i] !== u.index ? i : -1)).filter((i) => i >= 0);
-      if (xs.length) out.push({ tech: 2, cats: [], xs, lineKind, lines, regions: [u.index] });
+      if (xs.length) out.push({ tech: 2, cats: [], xs, lineKind, lines, regions: [u.index], premise: c });
     }
   }
   return out;
@@ -161,7 +164,7 @@ function t3(s: HState): Deduction[] {
       const regs = uniq(c.map((i) => s.reg[i]));
       if (regs.length !== 1) continue;
       const xs = s.cand.map((v, i) => (v && s.reg[i] === regs[0] && key(i) !== u.index ? i : -1)).filter((i) => i >= 0);
-      if (xs.length) out.push({ tech: 3, cats: [], xs, lineKind, lines: [u.index], regions: regs });
+      if (xs.length) out.push({ tech: 3, cats: [], xs, lineKind, lines: [u.index], regions: regs, premise: c });
     }
   }
   return out;
@@ -180,7 +183,10 @@ function t4(s: HState): Deduction[] {
     const t = cloneState(s);
     place(t, i);
     const unit = dead(t);
-    if (unit) out.push({ tech: 4, cats: [], xs: [i], lines: [rowOf(s, i), colOf(s, i)], regions: [s.reg[i]], unit });
+    if (unit) {
+      const ucells = unitsOf(s).find((u) => u.kind === unit.kind && u.index === unit.index)!.cells;
+      out.push({ tech: 4, cats: [], xs: [i], lines: [rowOf(s, i), colOf(s, i)], regions: [s.reg[i]], unit, premise: [i, ...ucells.filter((j) => s.cand[j] || j === i)] });
+    }
   }
   return out;
 }
@@ -196,7 +202,7 @@ function t5(s: HState): Deduction[] {
         if (lines.length !== k) continue;
         const ids = group.map((u) => u.index);
         const xs = s.cand.map((v, i) => (v && lines.includes(key(i)) && !ids.includes(s.reg[i]) ? i : -1)).filter((i) => i >= 0);
-        if (xs.length) out.push({ tech: 5, cats: [], xs, lineKind, lines, regions: ids });
+        if (xs.length) out.push({ tech: 5, cats: [], xs, lineKind, lines, regions: ids, premise: group.flatMap((u) => candsOf(s, u)) });
       }
     }
   }
@@ -214,7 +220,7 @@ function t6(s: HState): Deduction[] {
         if (regs.length !== k) continue;
         const ids = group.map((u) => u.index);
         const xs = s.cand.map((v, i) => (v && regs.includes(s.reg[i]) && !ids.includes(key(i)) ? i : -1)).filter((i) => i >= 0);
-        if (xs.length) out.push({ tech: 6, cats: [], xs, lineKind, lines: ids, regions: regs });
+        if (xs.length) out.push({ tech: 6, cats: [], xs, lineKind, lines: ids, regions: regs, premise: group.flatMap((u) => candsOf(s, u)) });
       }
     }
   }
@@ -245,7 +251,7 @@ function contradicts(s: HState, i: number): boolean {
 function t7(s: HState): Deduction[] {
   const out: Deduction[] = [];
   for (let i = 0; i < s.n * s.n; i++)
-    if (s.cand[i] && contradicts(s, i)) out.push({ tech: 7, cats: [], xs: [i], lines: [rowOf(s, i), colOf(s, i)], regions: [s.reg[i]] });
+    if (s.cand[i] && contradicts(s, i)) out.push({ tech: 7, cats: [], xs: [i], lines: [rowOf(s, i), colOf(s, i)], regions: [s.reg[i]], premise: [i] });
   return out;
 }
 

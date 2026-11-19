@@ -1,5 +1,5 @@
 import './style.css';
-import { applyHint, attemptsLeft, canHint, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
 import { findErrors } from '../core/hint';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
@@ -52,8 +52,9 @@ function render(): void {
   board.classList.toggle('dense', n >= 9);
 
   const h = g.hint;
-  const area = new Set(h?.level === 1 && h.data.kind === 'deduction' ? h.data.areaCells : []);
+  const area = new Set(h && h.data.kind === 'deduction' ? h.data.areaCells : []);
   const targets = new Set(h && h.level >= 2 && h.data.kind === 'deduction' ? [...h.data.deduction!.cats, ...h.data.deduction!.xs] : []);
+  const dedCats = new Set(h && h.level >= 2 && h.data.kind === 'deduction' ? h.data.deduction!.cats : []);
   const errCells = new Set(h?.data.kind === 'error' ? h.data.areaCells : []);
 
   board.innerHTML = g.cells
@@ -62,11 +63,12 @@ function render(): void {
       const c = i % n;
       const reg = g.puzzle.regions[r][c];
       const fresh = sameBoard && prevStates![i] !== m.state;
-      const cls = ['cell', g.armed === i ? 'armed' : '', g.puzzle.givens?.includes(i) ? 'given' : '', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
+      const cls = ['cell', g.armed === i ? 'armed' : '', g.puzzle.givens?.includes(i) ? 'given' : '', errCells.has(i) ? 'err' : targets.has(i) ? 'tgt' : area.has(i) ? 'hl' : ''].join(' ');
       const sym = symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : '';
+      const ghost = dedCats.has(i) ? `<span class="layer ghost">${catFace(36)}</span>` : targets.has(i) && m.state === 'empty' ? `<span class="layer ghost">${X_SVG}</span>` : '';
       const x = m.state === 'x' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_SVG}</span></span>` : '';
       const cat = m.state === 'cat' ? `<span class="layer"><span class="${fresh ? 'cat-in' : ''}" style="display:block;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${catFace(36)}</span></span>${fresh ? `<span class="ring"></span>${SPARKLES}` : ''}` : '';
-      return `<button class="${cls}" role="gridcell" data-i="${i}" aria-label="Linha ${r + 1}, coluna ${c + 1}: ${stateName[m.state]}" style="background:${COLOR_HEX[reg]}">${sym}${x}${cat}</button>`;
+      return `<button class="${cls}" role="gridcell" data-i="${i}" aria-label="Linha ${r + 1}, coluna ${c + 1}: ${stateName[m.state]}" style="background:${COLOR_HEX[reg]}">${sym}${x}${cat}${ghost}</button>`;
     })
     .join('');
   prevStates = g.cells.map((m) => m.state);
@@ -85,8 +87,8 @@ function render(): void {
 
   $('title').textContent = `Nível ${level}`;
   $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
-  ($('undo') as HTMLButtonElement).disabled = g.history.length === 0 || g.won;
-  ($('redo') as HTMLButtonElement).disabled = g.redo.length === 0 || g.won;
+  ($('undo') as HTMLButtonElement).disabled = !canUndo(g);
+  ($('redo') as HTMLButtonElement).disabled = !canRedo(g);
   const hintBtn = $('hintBtn') as HTMLButtonElement;
   hintBtn.disabled = !g.won && !canHint(g);
   hintBtn.dataset.mode = g.won ? 'next' : 'hint';
