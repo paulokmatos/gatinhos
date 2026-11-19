@@ -101,7 +101,8 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 
 ## 6. Pendências conhecidas
 
-- **Testes manuais no aparelho** (não automatizáveis): CA03 (arrastar no toque real), CA09 (nenhuma long task > 100 ms na geração), CA17, CA21 (instalar no iPhone), CA22 (modo avião), CA23 (matar o app), CA24 (10×10 sem rolagem, safe areas, cores distinguíveis), CA25 (roteiro completo no iPhone).
+- **Testes de interface locais** (Playwright, `npm run test:e2e`; Chrome do sistema, build de produção; projetos "desktop" e "celular" emulado com toque real): toque/✕/desmarcar, duplo toque, arrasto (CA03), dica em 3 passos (CA17), recomeçar, retomar ao recarregar (CA23), nível inteiro até vencer (CA25 emulado), 10×10 sem rolagem (CA24 emulado), nenhuma tarefa longa ≥ 100 ms ao gerar 10×10 (CA09 neste computador), offline (CA22 emulado) e instalabilidade no Chrome (CA21 parcial). Não rodam no CI.
+- **Seguem manuais no iPhone de verdade**: CA21 (instalar na tela de início), CA22 (modo avião real), CA23 (matar o app), CA24 (safe areas e cores distinguíveis), CA25 (roteiro completo), CA09 (tempo no aparelho, meta 5 s).
 - **Desempenho da geração**: níveis Expert 10×10 podem levar até ~8,5 s no pior caso medido no desktop (média ~0,6 s); meta dos critérios é 2 s no desktop / 5 s no iPhone → otimizar (ex.: filtro mais barato antes do solver humano).
 - Opcional não feito: trocar as cores do tabuleiro (só visual) ao recomeçar o nível.
 - Ícones PNG do app são desenhos simples gerados por script.
