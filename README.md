@@ -26,7 +26,7 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 ### Controles
 
 - **Toque uma vez** numa casa para marcar ✕ (a marca ✕ é só a *sua anotação*: nunca é colocada sozinha e pode estar errada).
-- **Dois toques seguidos na mesma casa = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: uma patinha grande quebra na tela e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
+- **Dois toques seguidos na mesma casa = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece e uma patinha grande é rasgada no centro da tela, e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste para marcar:** passe o dedo (ou o mouse) sobre casas vazias e as marcas ✕ aparecem enquanto você passa, todas desfeitas de uma vez com um único Desfazer.
 - **Desfazer / Refazer** voltam e repetem só as suas marcas ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
 - **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo.
