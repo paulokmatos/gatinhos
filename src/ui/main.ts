@@ -145,8 +145,8 @@ function update(next: GameState): void {
     saveProgress(kv, progress);
   }
 if (game && next.mistakes > game.mistakes) {
-    crack(attemptsLeft(next));
-    if (!isLost(next)) toast('Aqui não tem gatinho. Você perdeu 1 tentativa.');
+    if (isLost(next)) breakIdx = attemptsLeft(next);
+    else crack(attemptsLeft(next));
   }
   game = next;
   save(kv, level, game, symbols);
@@ -177,26 +177,24 @@ function showLoading(k: number): void {
   hint.innerHTML = `<span class="bob">${catHint(60)}</span><div class="bubble"><span>Preparando o nível ${k}…${n >= 9 ? ' Tabuleiros grandes demoram um pouquinho.' : ''}</span></div>`;
 }
 
-/** Patinha grande que "quebra" quando um palpite falha (e a patinha do contador balança). */
-const PAW_BIG = '<svg viewBox="0 0 24 24" width="120" height="120" aria-hidden="true"><g fill="#26262B"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>';
+/**
+ * Palpite errado: o fundo escurece como num modal e uma patinha grande é rasgada ao meio no centro da tela.
+ * Não bloqueia os toques e some sozinho; a patinha do contador também balança.
+ */
+const PAW_BIG = '<svg viewBox="0 0 24 24" width="150" height="150" aria-hidden="true"><g fill="#1F1F25"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>';
 let crackTimer = 0;
-function crack(lostIdx: number): void {
+function crack(left: number): void {
   const el = $('crack');
-  el.innerHTML = `<span class="half l">${PAW_BIG}</span><span class="half r">${PAW_BIG}</span><svg class="zig" viewBox="0 0 24 120" width="24" height="120" aria-hidden="true"><path d="M12 0 L7 24 L16 44 L6 70 L15 94 L11 120" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>`;
+  const msg = left === 1 ? 'Última tentativa!' : `Restam ${left} tentativas`;
+  el.innerHTML = `<div class="tear"><span class="half l">${PAW_BIG}</span><span class="half r">${PAW_BIG}</span></div><strong>Palpite errado</strong><span>${msg}</span>`;
   el.hidden = false;
-  breakIdx = lostIdx;
+  el.classList.remove('play');
+  void el.offsetWidth; // reinicia a animação se houver dois erros seguidos
+  el.classList.add('play');
+  breakIdx = left;
   try { navigator.vibrate?.(160); } catch { /* sem vibração */ }
   clearTimeout(crackTimer);
-  crackTimer = window.setTimeout(() => { el.hidden = true; breakIdx = -1; if (game) render(); }, 1300);
-}
-
-let toastTimer = 0;
-function toast(msg: string): void {
-  const t = $('toast');
-  t.textContent = msg;
-  t.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (t.hidden = true), 2200);
+  crackTimer = window.setTimeout(() => { el.hidden = true; breakIdx = -1; if (game) render(); }, 1700);
 }
 
 async function startLevel(k: number): Promise<void> {
