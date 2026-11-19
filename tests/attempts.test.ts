@@ -89,3 +89,22 @@ describe('dois toques seguidos = 1 tentativa (X não importa, só haver gatinho)
     expect(g.cells[wrong(0)].state).toBe('x');
   });
 });
+
+describe('recomeçar (sem gerar outras posições)', () => {
+  it('limpa tabuleiro e tentativas, mantém exatamente o mesmo nível', () => {
+    let g = newGame(P);
+    g = tap(tap(g, right(0)), right(0));
+    g = tap(tap(g, wrong(1)), wrong(1));
+    expect(g.mistakes).toBe(1);
+    const r = restart(g);
+    expect(r.puzzle).toBe(g.puzzle); // mesmo objeto: nada foi regerado
+    expect(r.puzzle.solution).toEqual(P.solution);
+    expect(r.mistakes).toBe(0);
+    expect(r.cells.every((m) => m.state === 'empty')).toBe(true);
+  });
+  it('gatinhos de brinde continuam no lugar depois de recomeçar', () => {
+    const given = P.solution[0];
+    const r = restart(newGame({ ...P, givens: [given] }));
+    expect(r.cells[given].state).toBe('cat');
+  });
+});

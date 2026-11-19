@@ -143,3 +143,18 @@ describe('progresso salvo no aparelho', () => {
     expect(() => saveProgress(kv, defaultProgress())).not.toThrow();
   });
 });
+
+describe('nome do jogador', () => {
+  it('sanitiza, limita e persiste só neste aparelho', async () => {
+    const { sanitizeName, setName, MAX_NAME } = await import('../src/core/progress');
+    expect(sanitizeName('  Paulo   Matos  ')).toBe('Paulo Matos');
+    expect(sanitizeName('<b>Ana</b>\n')).toBe('bAna/b');
+    expect(sanitizeName('x'.repeat(50))).toHaveLength(MAX_NAME);
+    expect(sanitizeName('')).toBe('');
+    const kv = memory();
+    saveProgress(kv, setName(defaultProgress(), 'Lia'));
+    expect(loadProgress(kv).name).toBe('Lia');
+    kv.setItem(PROGRESS_KEY, JSON.stringify({ ...defaultProgress(), name: 42 }));
+    expect(loadProgress(kv).name).toBe('');
+  });
+});

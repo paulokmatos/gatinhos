@@ -29,9 +29,12 @@
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5" stroke="#2F6B5E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div class="titles"><span id="title">Gatinhos</span><span id="sub"></span></div>
+        <div class="right">
+        <button id="profileBtn" class="round" aria-label="Seu nome" title="Seu nome"><span id="avatar">?</span></button>
         <button id="symbols" class="round" aria-label="Mostrar símbolos nas cores" title="Símbolos" aria-pressed="false">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4l7 8-7 8-7-8z" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linejoin="round"/></svg>
         </button>
+        </div>
       </div>
       <div class="rules"><div>1 gatinho por cor</div><div>1 por linha e coluna</div><div>Não podem se encostar</div></div>
       <div class="status">
@@ -63,6 +66,7 @@
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 14 L20 9 L15 4 M20 9 H10 A6 6 0 0 0 10 21 H14" stroke="#2F6B5E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
+      <div id="crack" class="crack" aria-hidden="true" hidden></div>
       <div id="toast" class="toast" role="status" hidden></div>
       <div id="sheet" hidden></div>
       <div id="overlay" hidden></div>

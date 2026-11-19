@@ -26,16 +26,23 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 ### Controles
 
 - **Toque uma vez** numa casa para marcar ✕ (a marca ✕ é só a *sua anotação*: nunca é colocada sozinha e pode estar errada).
-- **Dois toques seguidos na mesma casa = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
+- **Dois toques seguidos na mesma casa = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: uma patinha grande quebra na tela e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste para marcar:** passe o dedo (ou o mouse) sobre casas vazias para marcar ✕ em várias de uma vez.
 - **Desfazer / Refazer** voltam e repetem só as suas marcas ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
-- **Recomeçar nível** (⟲, canto superior esquerdo) limpa o tabuleiro.
+- **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo.
+- **Seu nome** (o círculo ao lado dos símbolos) é opcional e fica só neste aparelho; aparece no parabéns ao vencer.
 - **Símbolos** (◇, canto superior direito) mostram um símbolo em cada cor, para ajudar quem tem dificuldade de distinguir tons.
 
 ### Tentativas e progresso
 
 - Você tem **3 tentativas por nível** (as patinhas ao lado do tabuleiro). Gasta uma quando você dá um palpite numa casa que **não** tem gatinho. Desfazer não devolve tentativa.
 - Acima do tabuleiro, as bolinhas mostram **quais cores já têm gatinho** (com o gatinho dentro) e quais ainda faltam, com os nomes ao lado.
+
+<p align="center">
+  <img src="docs/celular-erro.png" alt="Palpite errado: a patinha quebra" width="150" />
+  <img src="docs/celular-recomecar.png" alt="Confirmar recomeço" width="150" />
+  <img src="docs/celular-perfil.png" alt="Escolher nome" width="150" />
+</p>
 
 <p align="center">
   <img src="docs/celular-dica.png" alt="Dica: o que fazer" width="150" />
@@ -57,7 +64,7 @@ O botão **✨** (com o número de usos) abre os poderes. Por enquanto existe o 
 - **Níveis 1–30:** etapas de 5 níveis, o tabuleiro cresce de **5×5 → 6×6 → … → 10×10** (Fácil → Médio → Difícil).
 - **Depois do 30:** a maioria é **10×10** (todo nível múltiplo de 5 é 9×9, um respiro) e, **a cada 10 níveis, o patamar sobe**: 31–40 Difícil, 41+ Expert.
 - **Gatinho de brinde:** nas dificuldades altas (a partir do nível 21) o nível pode já começar com 1 gatinho revelado, marcado com contorno tracejado. A chance é 50% nos níveis 21–30, 60% nos 31–40 e cai 15 pontos a cada 10 níveis, chegando a 0 no nível 71 — um empurrãozinho que some conforme você evolui. O sorteio é fixo por nível (igual em qualquer aparelho).
-- **Salvo no seu aparelho:** o nível atual, a partida em andamento, os usos de poder, níveis concluídos e melhores tempos ficam no `localStorage` do navegador. Cada aparelho tem o próprio progresso, sem conta nem servidor.
+- **Salvo no seu aparelho:** o nível atual, a partida em andamento, o seu nome, os usos de poder, níveis concluídos e melhores tempos ficam no `localStorage` do navegador. Cada aparelho tem o próprio progresso, sem conta nem servidor.
 
 ## 💡 3 dicas para começar
 
@@ -92,3 +99,5 @@ Para **pular os testes**: `[skip tests]` na mensagem do commit, label `skip-test
 Enquanto o Worker prepara um nível grande, aparece um esqueleto animado do tabuleiro com o gatinho de dica.
 
 **Pendente no aparelho:** CA03 (arrasto), CA09 (long task), CA17, CA21–CA25 (instalação, offline, safe areas, roteiro no iPhone).
+
+> A partida salva no navegador **não guarda a solução**: ela é recalculada das cores ao carregar. Como o jogo roda inteiro no aparelho, isso evita espiadas casuais, mas não é um segredo de verdade.

@@ -4,7 +4,7 @@ import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
-import { EARN_EVERY, loadProgress, recordCompletion, saveProgress, spendReveal, type Progress } from '../core/progress';
+import { EARN_EVERY, loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, spendReveal, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { catCheer, catFace, catHint } from './cat';
@@ -22,7 +22,9 @@ let loading = false;
 let prevStates: string[] | null = null;
 let prevPuzzle: Puzzle | null = null;
 let winClosed = false;
-let showPowers = false;
+let sheetKind: 'powers' | 'profile' | null = null;
+let confirming = false;
+let breakIdx = -1;
 let progress: Progress = loadProgress(kv);
 
 const fmt = (ms: number) => {
@@ -80,7 +82,7 @@ function render(): void {
   const missing = Array.from({ length: n }, (_, k) => k).filter((k) => !found.has(k)).map((k) => COLOR_NAMES[k]);
   $('missing').textContent = missing.length ? `Faltam: ${missing.join(', ')}` : 'Todos achados!';
   const left = attemptsLeft(g);
-  $('tries').innerHTML = Array.from({ length: MAX_ATTEMPTS }, (_, k) => PAW(k < left)).join('');
+  $('tries').innerHTML = Array.from({ length: MAX_ATTEMPTS }, (_, k) => `<span class="paw ${k === breakIdx ? 'break' : ''}">${PAW(k < left)}</span>`).join('');
   $('tries').setAttribute('aria-label', `${left} de ${MAX_ATTEMPTS} tentativas restantes`);
   $('tip').hidden = g.won;
 
@@ -103,24 +105,36 @@ function render(): void {
   } else hint.hidden = true;
 
   $('powerCount').textContent = String(progress.powers.reveal);
+  const initial = progress.name ? progress.name.charAt(0).toUpperCase() : '';
+  $('avatar').innerHTML = initial ? initial : catFace(26);
+  $('profileBtn').setAttribute('aria-label', progress.name ? `Seu nome: ${progress.name}` : 'Escolher seu nome');
   const sheet = $('sheet');
-  if (showPowers && !g.won) {
+  if (sheetKind === 'powers' && !g.won) {
     const can = progress.powers.reveal > 0 && canHint(g);
     sheet.hidden = false;
-    sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Poderes"><button id="closePowers" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Poderes</h2>
+    sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Poderes"><button id="closeSheet" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Poderes</h2>
       <div class="power-item"><span class="ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" fill="currentColor"/></svg></span>
       <span class="txt"><b>Revelar gatinho · ${progress.powers.reveal} ${progress.powers.reveal === 1 ? 'uso' : 'usos'}</b>Mostra um gatinho que ainda não foi achado. Não gasta tentativa.</span>
       <button id="useReveal" class="use" ${can ? '' : 'disabled'}>Usar</button></div>
       <p class="sheet-note">Ganhe +1 uso a cada ${EARN_EVERY} níveis concluídos. Concluídos até agora: ${progress.completed}.</p></div>`;
+  } else if (sheetKind === 'profile') {
+    sheet.hidden = false;
+    sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Seu nome"><button id="closeSheet" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Como podemos te chamar?</h2>
+      <label class="field"><span>Seu nome (opcional)</span><input id="nameInput" type="text" maxlength="${MAX_NAME}" autocomplete="nickname" autocapitalize="words" value="${progress.name.replace(/"/g, '&quot;')}" placeholder="Ex.: Paulo" /></label>
+      <button id="saveName" class="cta">Salvar</button>
+      <p class="sheet-note">O nome fica só neste aparelho.</p></div>`;
   } else sheet.hidden = true;
 
   const ov = $('overlay');
-  if (g.won && !winClosed) {
+  if (confirming) {
     ov.hidden = false;
-    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Nível concluído"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos os gatinhos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas: ${g.hintsUsed} · Poderes: ${g.powersUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próximo nível</button></div>`;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Recomeçar nível"><h2>Recomeçar nível?</h2><p>O tabuleiro fica limpo e você volta às ${MAX_ATTEMPTS} tentativas. Os gatinhos continuam nos mesmos lugares.</p><button id="confirmRestart" class="cta">Recomeçar</button><button id="cancelRestart" class="ghost">Cancelar</button></div>`;
+  } else if (g.won && !winClosed) {
+    ov.hidden = false;
+    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Nível concluído"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos os gatinhos!</h2><p>${progress.name ? `Parabéns, ${progress.name.replace(/[&<>]/g, '')}! ` : ''}Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas: ${g.hintsUsed} · Poderes: ${g.powersUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próximo nível</button></div>`;
   } else if (isLost(g)) {
     ov.hidden = false;
-    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><span class="bob">${catFace(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="big">Recomeçar nível</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><span class="bob">${catFace(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="cta">Recomeçar nível</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
   } else ov.hidden = true;
 }
 
@@ -129,7 +143,10 @@ function update(next: GameState): void {
     progress = recordCompletion(progress, level, elapsedMs(next));
     saveProgress(kv, progress);
   }
-  if (game && next.mistakes > game.mistakes && !isLost(next)) toast('Aqui não tem gatinho. Você perdeu 1 tentativa.');
+if (game && next.mistakes > game.mistakes) {
+    crack(attemptsLeft(next));
+    if (!isLost(next)) toast('Aqui não tem gatinho. Você perdeu 1 tentativa.');
+  }
   game = next;
   save(kv, level, game, symbols);
   render();
@@ -159,6 +176,19 @@ function showLoading(k: number): void {
   hint.innerHTML = `<span class="bob">${catHint(60)}</span><div class="bubble"><span>Preparando o nível ${k}…${n >= 9 ? ' Tabuleiros grandes demoram um pouquinho.' : ''}</span></div>`;
 }
 
+/** Patinha grande que "quebra" quando um palpite falha (e a patinha do contador balança). */
+const PAW_BIG = '<svg viewBox="0 0 24 24" width="120" height="120" aria-hidden="true"><g fill="#26262B"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>';
+let crackTimer = 0;
+function crack(lostIdx: number): void {
+  const el = $('crack');
+  el.innerHTML = `<span class="half l">${PAW_BIG}</span><span class="half r">${PAW_BIG}</span><svg class="zig" viewBox="0 0 24 120" width="24" height="120" aria-hidden="true"><path d="M12 0 L7 24 L16 44 L6 70 L15 94 L11 120" stroke="#fff" stroke-width="3" fill="none" stroke-linejoin="round"/></svg>`;
+  el.hidden = false;
+  breakIdx = lostIdx;
+  try { navigator.vibrate?.(160); } catch { /* sem vibração */ }
+  clearTimeout(crackTimer);
+  crackTimer = window.setTimeout(() => { el.hidden = true; breakIdx = -1; if (game) render(); }, 1300);
+}
+
 let toastTimer = 0;
 function toast(msg: string): void {
   const t = $('toast');
@@ -180,7 +210,8 @@ async function startLevel(k: number): Promise<void> {
   $('app').classList.remove('loading');
   prevStates = null;
   winClosed = false;
-  showPowers = false;
+  sheetKind = null;
+  confirming = false;
   update(newGame(puzzle));
 }
 
@@ -222,22 +253,31 @@ document.addEventListener('click', (e) => {
   if (!game || !id) return;
   if (id === 'undo') update(undo(game));
   else if (id === 'redo') update(redo(game));
-  else if (id === 'restart' || id === 'again') { winClosed = false; update(restart(game)); }
+  else if (id === 'restart') { confirming = true; render(); }
+  else if (id === 'cancelRestart') { confirming = false; render(); }
+  else if (id === 'confirmRestart' || id === 'again') { confirming = false; winClosed = false; update(restart(game)); }
   else if (id === 'keep') update(continueAfterLoss(game));
   else if (id === 'closeWin') { winClosed = true; render(); }
   else if (id === 'hintBtn') { if (game.won) void startLevel(level + 1); else update(pressHint(game)); }
   else if (id === 'apply') update(applyHint(game));
   else if (id === 'symbols') { symbols = !symbols; update(game); }
   else if (id === 'next') void startLevel(level + 1);
-  else if (id === 'powersBtn') { showPowers = true; render(); }
-  else if (id === 'closePowers') { showPowers = false; render(); }
+  else if (id === 'powersBtn') { sheetKind = 'powers'; render(); }
+  else if (id === 'profileBtn') { sheetKind = 'profile'; render(); (document.getElementById('nameInput') as HTMLInputElement | null)?.focus(); }
+  else if (id === 'closeSheet') { sheetKind = null; render(); }
+  else if (id === 'saveName') {
+    progress = setName(progress, (document.getElementById('nameInput') as HTMLInputElement).value);
+    saveProgress(kv, progress);
+    sheetKind = null;
+    render();
+  }
   else if (id === 'useReveal') {
     const spent = spendReveal(progress);
     const next = revealCat(game);
     if (spent && next !== game) {
       progress = spent;
       saveProgress(kv, progress);
-      showPowers = false;
+      sheetKind = null;
       update(next);
     }
   }

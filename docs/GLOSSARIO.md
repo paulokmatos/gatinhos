@@ -41,6 +41,9 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 | Vitória | "Você achou todos!" | **Você achou todos os gatinhos!** | — | Mostra tempo, dicas, poderes usados. |
 | Fechar o aviso de vitória | ✕ | **Fechar** | — | Depois, o botão vira "Próximo nível". |
 
+| Escolher como ser chamado | — | **Seu nome** (opcional, só neste aparelho) | login, conta, perfil | Círculo ao lado de Símbolos. |
+| Confirmar recomeço | — | **Recomeçar nível?** — "Recomeçar" / "Cancelar" | tem certeza?, OK | Não regera o tabuleiro. |
+
 ## Ajuda
 
 | Conceito | Hoje | Proposta | Evitar | Observação |
