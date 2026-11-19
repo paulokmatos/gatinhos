@@ -55,3 +55,37 @@ describe('tentativas (máx. 3 por quadro)', () => {
     expect(back.continued).toBe(true);
   });
 });
+
+describe('dois toques seguidos = 1 tentativa (X não importa, só haver gatinho)', () => {
+  it('2 toques numa casa com gatinho: acerta, sem gastar tentativa', () => {
+    const g = tap(tap(newGame(P), right(0)), right(0));
+    expect(g.cells[right(0)].state).toBe('cat');
+    expect(g.mistakes).toBe(0);
+  });
+  it('2 toques numa casa sem gatinho: erra e gasta 1, mesmo sem X prévio', () => {
+    const g = tap(tap(newGame(P), wrong(0)), wrong(0));
+    expect(g.cells[wrong(0)].state).toBe('empty');
+    expect(g.mistakes).toBe(1);
+  });
+  it('casa já riscada (ex.: arrasto): o 1º toque só arma, o 2º é a tentativa', () => {
+    let g = dragX(newGame(P), [wrong(1), right(2)]);
+    g = tap(g, wrong(1));
+    expect(g.mistakes).toBe(0);
+    expect(g.cells[wrong(1)].state).toBe('x'); // nada mudou ainda
+    g = tap(g, wrong(1));
+    expect(g.mistakes).toBe(1);
+    expect(g.cells[wrong(1)].state).toBe('empty');
+    let h = dragX(newGame(P), [right(2)]);
+    h = tap(tap(h, right(2)), right(2));
+    expect(h.cells[right(2)].state).toBe('cat');
+    expect(h.mistakes).toBe(0);
+  });
+  it('toques em casas diferentes não formam tentativa', () => {
+    let g = newGame(P);
+    g = tap(g, wrong(0));
+    g = tap(g, wrong(1));
+    g = tap(g, wrong(0)); // voltou: já tinha X e outro toque no meio → só arma
+    expect(g.mistakes).toBe(0);
+    expect(g.cells[wrong(0)].state).toBe('x');
+  });
+});

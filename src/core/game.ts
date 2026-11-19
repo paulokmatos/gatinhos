@@ -18,6 +18,8 @@ export interface GameState {
   hintsUsed: number;
   /** erros do jogador (X em casa de gatinho); ao chegar em MAX_ATTEMPTS a fase é perdida */
   mistakes: number;
+  /** casa que recebeu o toque anterior: um 2º toque seguido nela é uma tentativa */
+  armed: number | null;
   /** o jogador escolheu continuar depois de perder */
   continued: boolean;
   startedAt: number;
@@ -42,6 +44,7 @@ export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState 
     redo: [],
     hintsUsed: 0,
     mistakes: 0,
+    armed: null,
     continued: false,
     startedAt: opts.now ?? Date.now(),
     finishedAt: null,
@@ -59,7 +62,7 @@ function commit(g: GameState, changes: Change[], last: number | null): GameState
   if (!real.length) return g;
   const cells = g.cells.slice();
   for (const c of real) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null });
+  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null, armed: null });
 }
 
 function finalize(g: GameState, now = Date.now()): GameState {
@@ -74,23 +77,26 @@ export function conflicts(g: GameState): Set<number> {
 }
 
 /**
- * Toque: vazio → X → gatinho. O X é só rascunho do jogador (pode estar errado) e nunca é posto sozinho.
- * O gatinho só aparece numa casa que é dele; ao tocar de novo num gatinho nada acontece.
- * Num X de casa sem gatinho, o toque limpa o X, o gatinho não aparece e gasta 1 das MAX_ATTEMPTS tentativas.
+ * Dois toques seguidos na mesma casa = uma tentativa de achar o gatinho. O que decide acerto ou erro é
+ * só haver (ou não) um gatinho ali; ter ou não um X na casa não importa.
+ *  - 1º toque: casa vazia vira X (rascunho do jogador, nunca automático); casa já com X só fica "armada".
+ *  - 2º toque seguido: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
+ * Um gatinho revelado não some ao tocar de novo.
  */
 export function tap(g: GameState, i: number): GameState {
   if (locked(g)) return g;
   const before = g.cells[i];
-  if (before.state === 'cat') return g;
+  if (before.state === 'cat') return g.armed === null ? g : { ...g, armed: null };
   const n = g.puzzle.size;
   const isCatCell = g.puzzle.solution[Math.floor(i / n)] === i % n;
-  let after: Mark;
-  if (before.state === 'empty') after = { state: 'x' };
-  else after = isCatCell ? { state: 'cat' } : { ...EMPTY };
-  const next = commit(g, [{ index: i, before, after }], i);
-  // tentar o gatinho (2º toque) numa casa que não é dele gasta uma tentativa
-  const mistake = before.state === 'x' && !isCatCell;
-  return mistake && next !== g ? { ...next, mistakes: g.mistakes + 1 } : next;
+  if (g.armed === i) {
+    const after: Mark = isCatCell ? { state: 'cat' } : { ...EMPTY };
+    const next = commit(g, before.state === after.state ? [] : [{ index: i, before, after }], i);
+    const base = next === g ? { ...g, lastMove: i, hint: null } : next;
+    return { ...base, armed: null, mistakes: isCatCell ? g.mistakes : g.mistakes + 1 };
+  }
+  if (before.state === 'empty') return { ...commit(g, [{ index: i, before, after: { state: 'x' } }], i), armed: i };
+  return { ...g, armed: i, hint: null };
 }
 
 /** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatos (nem X). */
@@ -111,7 +117,7 @@ export function undo(g: GameState): GameState {
   if (!entry || locked(g)) return g;
   const cells = g.cells.slice();
   for (const c of entry) cells[c.index] = { ...c.before };
-  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null };
+  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null, armed: null };
 }
 
 export function redo(g: GameState): GameState {
@@ -119,7 +125,7 @@ export function redo(g: GameState): GameState {
   if (!entry || locked(g)) return g;
   const cells = g.cells.slice();
   for (const c of entry) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null });
+  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null, armed: null });
 }
 
 export function continueAfterLoss(g: GameState): GameState {

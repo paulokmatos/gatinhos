@@ -25,8 +25,8 @@ Quando todos os gatinhos forem achados, a fase termina. 🎉
 
 ### Controles
 
-- **Toque numa casa:** vazia → **✕** → **🐱**.
-  O ✕ é só o *seu rascunho* ("aqui não tem gatinho"). Ele **nunca** é marcado sozinho e pode até estar errado.
+- **Toque numa casa** para riscar ✕ (o ✕ é só o *seu rascunho*: nunca é marcado sozinho e pode estar errado).
+- **Dois toques seguidos na mesma casa = 1 tentativa:** se há um gatinho ali, ele aparece 🐱; se não há, você perde uma tentativa. Ter ou não um ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste** o dedo (ou o mouse) sobre casas vazias para riscar várias de uma vez.
 - **Desfazer / Refazer** voltam e repetem suas jogadas.
 - **Reiniciar** (canto superior esquerdo) limpa o quadro.
@@ -34,7 +34,7 @@ Quando todos os gatinhos forem achados, a fase termina. 🎉
 
 ### Tentativas e progresso
 
-- Você tem **3 tentativas por quadro** (as patinhas ao lado do quadro). Gasta uma quando tenta colocar o gatinho (2º toque num ✕) numa casa que **não** é dele. Desfazer não devolve tentativa.
+- Você tem **3 tentativas por quadro** (as patinhas ao lado do quadro). Gasta uma quando você faz o duplo toque numa casa que **não** tem gatinho. Desfazer não devolve tentativa.
 - Acima do tabuleiro, as bolinhas mostram **quais cores já têm gatinho** (com o gatinho dentro) e quais ainda faltam, com os nomes ao lado.
 - Se alguma marcação ✕ estiver sobre um gatinho de verdade, aparece um aviso — sem dizer onde.
 

@@ -59,7 +59,7 @@ function render(): void {
       const c = i % n;
       const reg = g.puzzle.regions[r][c];
       const fresh = sameBoard && prevStates![i] !== m.state;
-      const cls = ['cell', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
+      const cls = ['cell', g.armed === i ? 'armed' : '', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
       const sym = symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : '';
       const x = m.state === 'x' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_SVG}</span></span>` : '';
       const cat = m.state === 'cat' ? `<span class="layer"><span class="${fresh ? 'cat-in' : ''}" style="display:block;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${catFace(36)}</span></span>${fresh ? `<span class="ring"></span>${SPARKLES}` : ''}` : '';
