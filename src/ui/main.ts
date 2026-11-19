@@ -1,6 +1,5 @@
 import './style.css';
 import { applyHint, attemptsLeft, canHint, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
-import { findErrors } from '../core/hint';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
@@ -83,7 +82,7 @@ function render(): void {
   const left = attemptsLeft(g);
   $('tries').innerHTML = Array.from({ length: MAX_ATTEMPTS }, (_, k) => PAW(k < left)).join('');
   $('tries').setAttribute('aria-label', `${left} de ${MAX_ATTEMPTS} tentativas restantes`);
-  $('warn').hidden = findErrors(g.puzzle, g.cells).length === 0 || g.won;
+  $('tip').hidden = g.won;
 
   $('title').textContent = `Nível ${level}`;
   $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
@@ -152,7 +151,7 @@ function showLoading(k: number): void {
   $('found').textContent = '';
   $('missing').textContent = '';
   $('tries').innerHTML = '';
-  $('warn').hidden = true;
+  $('tip').hidden = true;
   $('overlay').hidden = true;
   $('sheet').hidden = true;
   const hint = $('hint');
