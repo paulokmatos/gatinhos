@@ -26,7 +26,7 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 ### Controles
 
 - **Toque uma vez** numa casa para marcar ✕ (a marca ✕ é só a *sua anotação*: nunca é colocada sozinha e pode estar errada).
-- **Dois toques seguidos na mesma casa = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece e uma patinha grande é rasgada no centro da tela, e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
+- **Duplo toque (2 toques rápidos na mesma casa) = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece e uma patinha grande é rasgada no centro da tela, e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste para marcar:** passe o dedo (ou o mouse) sobre casas vazias e as marcas ✕ aparecem enquanto você passa, todas desfeitas de uma vez com um único Desfazer.
 - **Desfazer / Refazer** voltam e repetem só as suas marcas ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
 - **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo.
@@ -104,7 +104,7 @@ Dificuldade: T1–T2 Fácil, T3–T4 Médio, T5–T6 Difícil, T7 Expert.
 **CI** (`.github/workflows/ci.yml`): typecheck + testes → build → deploy no GitHub Pages (só em `main`).
 Para **pular os testes**: `[skip tests]` na mensagem do commit, label `skip-tests` no PR, ou "Pular os testes" ao disparar manualmente. O build e o deploy continuam rodando.
 
-Enquanto o Worker prepara um nível grande, aparece um esqueleto animado do tabuleiro com o gatinho de dica.
+Enquanto o Worker prepara um nível grande, aparece um esqueleto animado do tabuleiro com o gatinho de dica. Em níveis 10×10, o próximo já é preparado em segundo plano enquanto você joga o atual.
 
 **Pendente no aparelho:** CA03 (arrasto), CA09 (long task), CA17, CA21–CA25 (instalação, offline, safe areas, roteiro no iPhone).
 

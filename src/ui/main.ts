@@ -1,7 +1,7 @@
 import './style.css';
 import { applyHint, attemptsLeft, canHint, canReveal, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
 import { FIXED_LEVELS } from '../core/levels';
-import { requestLevel } from '../core/levelClient';
+import { prefetchLevel, requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
 import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
@@ -229,6 +229,7 @@ async function startLevel(k: number): Promise<void> {
   sheetKind = null;
   confirming = false;
   update(newGame(puzzle));
+  prefetchLevel(k + 1);
 }
 
 // --- entrada: toque e arrasto ---

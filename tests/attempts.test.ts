@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attemptsLeft, canHint, continueAfterLoss, dragX, isLost, MAX_ATTEMPTS, newGame, restart, tap, undo } from '../src/core/game';
+import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, isLost, MAX_ATTEMPTS, newGame, restart, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { load, save, type KV } from '../src/core/storage';
 
@@ -56,7 +56,7 @@ describe('tentativas (máx. 3 por nível)', () => {
   });
 });
 
-describe('dois toques seguidos = 1 palpite (a marca ✕ não importa, só haver gatinho)', () => {
+describe('duplo toque (2 toques rápidos) = 1 palpite (a marca ✕ não importa, só haver gatinho)', () => {
   it('2 toques numa casa com gatinho: acerta, sem gastar tentativa', () => {
     const g = tap(tap(newGame(P), right(0)), right(0));
     expect(g.cells[right(0)].state).toBe('cat');
@@ -67,11 +67,20 @@ describe('dois toques seguidos = 1 palpite (a marca ✕ não importa, só haver 
     expect(g.cells[wrong(0)].state).toBe('empty');
     expect(g.mistakes).toBe(1);
   });
-  it('casa já marcada com ✕ (ex.: arrastar): o 1º toque só arma, o 2º é a tentativa', () => {
+  it('2º toque fora da janela do duplo toque não é palpite: só arma de novo', () => {
+    let g = tap(newGame(P), wrong(0), 1000);
+    g = tap(g, wrong(0), 1000 + DOUBLE_TAP_MS + 1);
+    expect(g.mistakes).toBe(0);
+    expect(g.cells[wrong(0)].state).toBe('empty'); // toque lento numa casa com ✕ também tira a marca
+    g = tap(g, wrong(0), 3000);
+    g = tap(g, wrong(0), 3100); // 1º toque põe ✕, o seguinte (rápido) é o palpite
+    expect(g.mistakes).toBe(1);
+  });
+  it('casa já marcada com ✕ (ex.: arrastar): o 1º toque tira o ✕ na hora, o 2º (rápido) é a tentativa', () => {
     let g = dragX(newGame(P), [wrong(1), right(2)]);
     g = tap(g, wrong(1));
     expect(g.mistakes).toBe(0);
-    expect(g.cells[wrong(1)].state).toBe('x'); // nada mudou ainda
+    expect(g.cells[wrong(1)].state).toBe('empty'); // ✕ removido sem esperar
     g = tap(g, wrong(1));
     expect(g.mistakes).toBe(1);
     expect(g.cells[wrong(1)].state).toBe('empty');
@@ -84,9 +93,9 @@ describe('dois toques seguidos = 1 palpite (a marca ✕ não importa, só haver 
     let g = newGame(P);
     g = tap(g, wrong(0));
     g = tap(g, wrong(1));
-    g = tap(g, wrong(0)); // voltou: já tinha X e outro toque no meio → só arma
+    g = tap(g, wrong(0)); // voltou: outro toque no meio, então não é palpite: só tira o ✕
     expect(g.mistakes).toBe(0);
-    expect(g.cells[wrong(0)].state).toBe('x');
+    expect(g.cells[wrong(0)].state).toBe('empty');
   });
 });
 

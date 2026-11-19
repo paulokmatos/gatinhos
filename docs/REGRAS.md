@@ -13,7 +13,7 @@
 |---|---|---|
 | Modelo, validador de conflitos, vitória | `tests/m1.test.ts` | 3 níveis fixos com solução única; conflitos por tipo (linha, coluna, cor, encostados incl. diagonal); vitória dispara 1 vez |
 | Toque, marca ✕, desfazer/refazer, recomeçar | `tests/m1.test.ts`, `tests/attempts.test.ts` | ver seção 2 (regras de interação) |
-| Tentativas, palpite, perder, recomeçar sem regerar | `tests/attempts.test.ts` | 3 tentativas/nível; 2 toques seguidos = 1 palpite; perder trava; recomeçar mantém o mesmo nível |
+| Tentativas, palpite, perder, recomeçar sem regerar | `tests/attempts.test.ts` | 3 tentativas/nível; duplo toque (até 400 ms) = 1 palpite; perder trava; recomeçar mantém o mesmo nível |
 | Gerador (seed, regiões, unicidade, erro tratado) | `tests/generator.test.ts` | CA06–CA09 |
 | Solver humano T1–T7, classificação, progressão 1–100 | `tests/human.test.ts` | CA10–CA12 |
 | Etapas/progressão, gatinho de brinde, poder, progresso, nome, `?nivel=` | `tests/progress.test.ts` | seção 2.6–2.9 |
@@ -31,8 +31,8 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 
 ### 2.2 Toque, marca ✕ e palpite
 - A **marca ✕ é anotação do jogador**: **nunca** é colocada automaticamente (não existe auto-X) e pode estar errada, sem aviso.
-- 1 toque numa casa vazia = marca ✕. **2 toques seguidos na mesma casa = 1 palpite**: se há gatinho, ele aparece (e **nunca some**); se não há, o ✕ é limpo e o jogador **perde 1 tentativa**. Ter ou não ✕ na casa **não importa**; só importa haver gatinho.
-- Casa já marcada com ✕ (ex.: por arrastar): o 1º toque só "arma"; o 2º é o palpite.
+- 1 toque numa casa vazia = marca ✕. **Duplo toque (2 toques rápidos, até 400 ms) na mesma casa = 1 palpite**: se há gatinho, ele aparece (e **nunca some**); se não há, o ✕ é limpo e o jogador **perde 1 tentativa**. Ter ou não ✕ na casa **não importa**; só importa haver gatinho.
+- Toque numa casa com ✕ (ex.: por arrastar) **tira o ✕ na hora**; um 2º toque rápido na mesma casa é o palpite. Toques em casas diferentes nunca formam palpite.
 - **Arrastar** marca ✕ nas casas vazias por onde passa, **ao vivo** (enquanto o dedo passa), sem sobrescrever gatinho nem marca; é **uma única entrada de histórico**; nunca custa tentativa.
 - **Desfazer/Refazer só mexem em marcas ✕.** Gatinho é "escrita do jogo": revelado, nunca é desfeito (por palpite, poder, "Fazer por mim" ou brinde). Desfazer **não devolve tentativa**.
 
@@ -61,7 +61,7 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 - **1–30: etapas de 5 níveis**: 5×5, 6×6, 7×7 (Fácil), 8×8 (Médio), 9×9 e 10×10 (Difícil).
 - **Depois do 30**: 31–40 Difícil, 41+ Expert; quase tudo 10×10 (múltiplos de 5 são 9×9). Dificuldade **nunca diminui**.
 - Classificação: T1–T2 Fácil, T3–T4 Médio, T5–T6 Difícil, T7 Expert; nível que nem T7 resolve é descartado. Tabela de tamanhos: Fácil 5–7, Médio 7–8, Difícil 8–10, Expert 9–10.
-- A geração roda num Web Worker; se falhar, cai num nível fixo (a interface nunca trava).
+- A geração roda num Web Worker; se falhar, cai num nível fixo (a interface nunca trava). Ao abrir um nível, o próximo é pré-carregado em segundo plano **só se for 10×10** e **1 por vez** (poupa bateria); se o pré-carregamento falhar, o nível é gerado de novo ao chegar nele.
 
 ### 2.9 Persistência e perfil (só no aparelho; sem conta/servidor)
 - `localStorage`: `gatinhos:v1` (partida em andamento) e `gatinhos:progress:v1` (nome, níveis concluídos, nível de retomada, melhores tempos).
@@ -73,7 +73,7 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 ## 3. Regras de interface e visual (sem teste: conferir no navegador/aparelho)
 
 - **Cabeçalho**: ⟲ (recomeçar) | "Nível N" + "Dificuldade · N×N · tempo" | círculo do nome + símbolos. Chips das 3 regras. Linha do indicador: bolinhas por cor (com a carinha do gatinho quando achada, opacas quando faltam), "N de M gatinhos", "Faltam: …" e as patinhas de tentativas.
-- Linha fixa e **discreta** sob o tabuleiro: "1 toque anota ✕ · 2 toques seguidos dão um palpite". **Não** mostrar alertas de marca errada (decisão de UX: informar sem escancarar, sem tratar o jogador como bobo).
+- Linha fixa e **discreta** sob o tabuleiro: "1 toque anota ✕ · duplo toque dá um palpite". **Não** mostrar alertas de marca errada (decisão de UX: informar sem escancarar, sem tratar o jogador como bobo).
 - **Palpite errado**: fundo levemente escurecido (como modal), patinha grande no centro **rasgada ao meio** por corte irregular + "Palpite errado" e "Restam N tentativas"/"Última tentativa!" (~1,7 s, não bloqueia toques, some sozinho); a patinha do contador balança; vibração curta se houver. Na última tentativa (perde) não há essa animação: o aviso "Sem tentativas" assume.
 - **Carregando**: esqueleto animado do tabuleiro (tamanho certo) + gatinho e "Preparando o nível N…" (+ "Tabuleiros grandes demoram um pouquinho." de 9×9 para cima). Botões travados.
 - Tabuleiro denso (gap 2px) a partir de 9×9. Animações respeitam `prefers-reduced-motion`. Safe areas respeitadas. Alvos ≥ 44 px.
