@@ -105,18 +105,20 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     expect(g.hint).toBeNull();
     expect(pressHint(g).hint!.level).toBe(1);
   });
-  it('Aplicar: uma entrada no history, desfazer reverte tudo, hintsUsed +1, sem auto', () => {
+  it('Aplicar: uma entrada no history (só marcações), desfazer reverte os X, hintsUsed +1', () => {
     let g = start();
     g = pressHint(pressHint(pressHint(g)));
     const before = g.history.length;
     const target = g.hint!.data.apply!;
     g = applyHint(g);
     expect(g.hintsUsed).toBe(1);
-    expect(g.history.length).toBe(before + 1);
+    expect(g.history.length).toBe(before + (target.xs.length ? 1 : 0));
     for (const x of target.xs) expect(g.cells[x]).toEqual({ state: 'x' });
     for (const c of target.cats) expect(g.cells[c].state).toBe('cat');
         g = undo(g);
-    expect(g.cells.every((m) => m.state === 'empty')).toBe(true);
+    // gatinho é escrita do código: o desfazer reverte só as marcações (X) do passo
+    for (const x of target.xs) expect(g.cells[x].state).toBe('empty');
+    for (const c of target.cats) expect(g.cells[c].state).toBe('cat');
   });
   it('Aplicar só funciona no 3º toque', () => {
     const g = pressHint(start());
@@ -171,7 +173,7 @@ describe('CA19 mensagens', () => {
     expect(seen.size).toBe(7);
   });
   it('exemplo T5 em texto', () => {
-    const msg = hintMessage({ tech: 5, cats: [], xs: [0], lineKind: 'col', lines: [4, 5], regions: [3, 7] }, 10);
-    expect(msg).toBe('As cores Jabuticaba e Flor só cabem nas colunas 5 e 6 — risque as outras casas dessas colunas.');
+    const msg = hintMessage({ tech: 5, cats: [], xs: [0], lineKind: 'col', lines: [4, 5], regions: [3, 7], premise: [] }, 10);
+    expect(msg).toBe('As cores Roxo e Rosa só têm casas nas colunas 5 e 6. Elas ocupam essas colunas, então as casas de outras cores nelas não podem ter gatinho: marque ✕ nelas.');
   });
 });
