@@ -54,7 +54,7 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 | Passo 3 | "Aplicar" | **Fazer por mim** | aplicar | Só este passo conta como dica usada. |
 | Poderes | "Poderes" | **Poderes** | itens, boosts, power-ups | |
 | Primeiro poder | "Revelar um gatinho" | **Revelar gatinho** | — | Não gasta tentativa. |
-| Cargas | "cargas" | **usos** (ex.: "3 usos") | cargas, créditos | Ganha +1 uso a cada 3 níveis concluídos. |
+
 | Gatinho que já vem na tela | "gatinho inicial", "given" | **Gatinho de brinde** | given, inicial | Contorno tracejado. |
 
 ## Mensagens do tabuleiro

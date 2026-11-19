@@ -4,6 +4,8 @@ import type { Mark, Puzzle } from './types';
 import { conflictIndexes } from './validator';
 
 export const MAX_ATTEMPTS = 3;
+/** usos do poder "Revelar gatinho" por nível */
+export const MAX_REVEALS = 1;
 
 export interface Change {
   index: number;
@@ -163,12 +165,14 @@ export function redo(g: GameState): GameState {
 }
 
 /**
- * Poder "Revelar um gatinho": mostra um gatinho ainda não achado, sem gastar tentativa.
+ * Poder "Revelar gatinho" (1 vez por nível): mostra um gatinho ainda não achado, sem gastar tentativa.
  * Escolhe o da cor com mais casas livres (a mais difícil de deduzir), empate pela menor posição.
  * Entra no histórico como uma única jogada.
  */
+export const canReveal = (g: GameState) => !locked(g) && g.powersUsed < MAX_REVEALS;
+
 export function revealCat(g: GameState): GameState {
-  if (locked(g)) return g;
+  if (!canReveal(g)) return g;
   const n = g.puzzle.size;
   const s = stateFromMarks(g.puzzle, g.cells);
   let best = -1;

@@ -1,10 +1,10 @@
 import './style.css';
-import { applyHint, attemptsLeft, canHint, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, canReveal, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
-import { EARN_EVERY, loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, spendReveal, type Progress } from '../core/progress';
+import { loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { catCheer, catFace, catHint } from './cat';
@@ -104,19 +104,20 @@ function render(): void {
     hint.innerHTML = `${catHint(60)}<div class="bubble"><span>${tag}${text}</span>${h.level === 3 && h.data.apply ? '<button id="apply" class="apply">Fazer por mim</button>' : ''}</div>`;
   } else hint.hidden = true;
 
-  $('powerCount').textContent = String(progress.powers.reveal);
+  $('powerCount').textContent = canReveal(g) ? '1' : '0';
+  $('powerCount').classList.toggle('used', !canReveal(g));
   const initial = progress.name ? progress.name.charAt(0).toUpperCase() : '';
   $('avatar').innerHTML = initial ? initial : catFace(26);
   $('profileBtn').setAttribute('aria-label', progress.name ? `Seu nome: ${progress.name}` : 'Escolher seu nome');
   const sheet = $('sheet');
   if (sheetKind === 'powers' && !g.won) {
-    const can = progress.powers.reveal > 0 && canHint(g);
+    const can = canReveal(g);
     sheet.hidden = false;
     sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Poderes"><button id="closeSheet" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Poderes</h2>
       <div class="power-item"><span class="ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" fill="currentColor"/></svg></span>
-      <span class="txt"><b>Revelar gatinho · ${progress.powers.reveal} ${progress.powers.reveal === 1 ? 'uso' : 'usos'}</b>Mostra um gatinho que ainda não foi achado. Não gasta tentativa.</span>
-      <button id="useReveal" class="use" ${can ? '' : 'disabled'}>Usar</button></div>
-      <p class="sheet-note">Ganhe +1 uso a cada ${EARN_EVERY} níveis concluídos. Concluídos até agora: ${progress.completed}.</p></div>`;
+      <span class="txt"><b>Revelar gatinho</b>Mostra um gatinho que ainda não foi achado. Não gasta tentativa.</span>
+      <button id="useReveal" class="use" ${can ? '' : 'disabled'}>${can ? 'Usar' : 'Já usado'}</button></div>
+      <p class="sheet-note">Você pode usar 1 vez por nível. Níveis concluídos até agora: ${progress.completed}.</p></div>`;
   } else if (sheetKind === 'profile') {
     sheet.hidden = false;
     sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Seu nome"><button id="closeSheet" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Como podemos te chamar?</h2>
@@ -163,7 +164,7 @@ function showLoading(k: number): void {
   board.style.setProperty('--n', String(n));
   board.classList.toggle('dense', n >= 9);
   board.innerHTML = Array.from({ length: n * n }, (_, i) => `<div class="cell skel" style="animation-delay:${((Math.floor(i / n) + (i % n)) * 70) % 1400}ms"></div>`).join('');
-  $('powerCount').textContent = String(progress.powers.reveal);
+  $('powerCount').textContent = '1';
   $('progress').innerHTML = '';
   $('found').textContent = '';
   $('missing').textContent = '';
@@ -216,7 +217,9 @@ async function startLevel(k: number): Promise<void> {
 }
 
 // --- entrada: toque e arrasto ---
-let down: { start: number; path: number[]; dragging: boolean } | null = null;
+// Arrasto: as marcas ✕ aparecem enquanto o dedo passa (recalculadas a partir do estado do início do arrasto,
+// então tudo vira uma única entrada de histórico).
+let down: { start: number; path: number[]; dragging: boolean; base: GameState } | null = null;
 const cellAt = (x: number, y: number): number | null => {
   const i = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>('.cell')?.dataset.i;
   return i === undefined ? null : Number(i);
@@ -224,23 +227,32 @@ const cellAt = (x: number, y: number): number | null => {
 const board = $('board');
 board.addEventListener('pointerdown', (e) => {
   const i = cellAt(e.clientX, e.clientY);
-  if (i !== null && game && !game.won && !loading) down = { start: i, path: [i], dragging: false };
+  if (i === null || !game || game.won || loading) return;
+  down = { start: i, path: [i], dragging: false, base: game };
+  // o tabuleiro é redesenhado durante o arrasto: sem a captura, o toque se perderia junto com a casa antiga
+  try { board.setPointerCapture(e.pointerId); } catch { /* sem captura: o arrasto ainda funciona com mouse */ }
 });
 board.addEventListener('pointermove', (e) => {
-  if (!down || !game) return;
+  if (!down) return;
   const i = cellAt(e.clientX, e.clientY);
   if (i === null || i === down.path[down.path.length - 1]) return;
-  if (game.cells[down.start].state !== 'empty' && !down.dragging) return;
+  if (down.base.cells[down.start].state !== 'empty' && !down.dragging) return;
   down.dragging = true;
   down.path.push(i);
+  game = dragX(down.base, down.path);
+  render();
 });
 window.addEventListener('pointerup', () => {
   if (!down || !game) return;
   const d = down;
   down = null;
-  update(d.dragging ? dragX(game, d.path) : tap(game, d.start));
+  if (d.dragging) save(kv, level, game, symbols);
+  else update(tap(game, d.start));
 });
-window.addEventListener('pointercancel', () => (down = null));
+window.addEventListener('pointercancel', () => {
+  if (down?.dragging) { game = down.base; render(); }
+  down = null;
+});
 // teclado: Enter/Espaço num botão da casa gera click sem ponteiro (detail === 0)
 board.addEventListener('click', (e) => {
   const i = (e.target as HTMLElement).closest<HTMLElement>('.cell')?.dataset.i;
@@ -272,11 +284,8 @@ document.addEventListener('click', (e) => {
     render();
   }
   else if (id === 'useReveal') {
-    const spent = spendReveal(progress);
     const next = revealCat(game);
-    if (spent && next !== game) {
-      progress = spent;
-      saveProgress(kv, progress);
+    if (next !== game) {
       sheetKind = null;
       update(next);
     }
