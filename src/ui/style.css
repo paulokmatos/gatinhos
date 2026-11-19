@@ -1,5 +1,5 @@
 :root {
-  --lagoa: #eef3ec; --mata: #2f6b5e; --tangerina: #d9661a; --frajola: #26262b; --barro: #5c3a24; --texto: #3e2a1c; --suave: #4a3b30;
+  --lagoa: #eef3ec; --mata: #2f6b5e; --tangerina: #d9661a; --frajola: #26262b; --pretinho: #1f1f25; --olho: #5cc24e; --barro: #5c3a24; --texto: #3e2a1c; --suave: #4a3b30;
   --erro: #d93a3f;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -127,3 +127,7 @@ button:disabled { opacity: .5; cursor: default; }
 @keyframes pawBreak { 0% { transform: scale(1); } 20% { transform: scale(1.5) rotate(-12deg); } 40% { transform: scale(1.5) rotate(12deg); } 60% { transform: scale(1.2) rotate(-6deg); } 100% { transform: scale(1); } }
 #sheet h2 { padding-right: 52px; }
 .badge.used { background: #8a948c; }
+.round.big { flex: none; }
+.pill { white-space: nowrap; min-width: 0; }
+.pill.orange[data-mode='next'] { font-size: 16px; }
+.pill svg { flex: none; }

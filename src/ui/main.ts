@@ -7,7 +7,7 @@ import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
 import { loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
-import { catCheer, catFace, catHint } from './cat';
+import { catCheer, catDot, catFace, catHint, catSad } from './cat';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const kv: KV = {
@@ -77,7 +77,7 @@ function render(): void {
 
   const found = new Set<number>();
   g.cells.forEach((m, i) => m.state === 'cat' && found.add(g.puzzle.regions[Math.floor(i / n)][i % n]));
-  $('progress').innerHTML = Array.from({ length: n }, (_, k) => `<span class="dot ${found.has(k) ? 'on' : ''}" style="background:${COLOR_HEX[k]}" title="${COLOR_NAMES[k]}: ${found.has(k) ? 'achado' : 'falta'}">${found.has(k) ? catFace(16) : ''}</span>`).join('');
+  $('progress').innerHTML = Array.from({ length: n }, (_, k) => `<span class="dot ${found.has(k) ? 'on' : ''}" style="background:${COLOR_HEX[k]}" title="${COLOR_NAMES[k]}: ${found.has(k) ? 'achado' : 'falta'}">${found.has(k) ? catDot(16) : ''}</span>`).join('');
   $('found').textContent = `${found.size} de ${n} gatinhos`;
   const missing = Array.from({ length: n }, (_, k) => k).filter((k) => !found.has(k)).map((k) => COLOR_NAMES[k]);
   $('missing').textContent = missing.length ? `Faltam: ${missing.join(', ')}` : 'Todos achados!';
@@ -135,7 +135,7 @@ function render(): void {
     ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Nível concluído"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos os gatinhos!</h2><p>${progress.name ? `Parabéns, ${progress.name.replace(/[&<>]/g, '')}! ` : ''}Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas: ${g.hintsUsed} · Poderes: ${g.powersUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próximo nível</button></div>`;
   } else if (isLost(g)) {
     ov.hidden = false;
-    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><span class="bob">${catFace(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="cta">Recomeçar nível</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><span class="bob">${catSad(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="cta">Recomeçar nível</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
   } else ov.hidden = true;
 }
 
