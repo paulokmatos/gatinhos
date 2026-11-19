@@ -17,7 +17,9 @@ npm run build      # typecheck + build de produção
 
 - Toque: vazio → X → gatinho. O **X é só rascunho do jogador** (pode estar errado) e **nunca é marcado automaticamente**.
 - O gatinho só aparece na casa que é dele; depois de revelado, tocar de novo não o remove (use Desfazer). Tocar num X de casa sem gatinho apenas limpa o X.
-- Acima do tabuleiro: progresso (cores com gatinho achado) e um aviso quando alguma marcação ✕ está errada.
+- **3 tentativas por quadro:** tentar o gatinho (2º toque num X) numa casa que não é dele gasta 1 tentativa. Ao zerar, aparece um modal: **Reiniciar o quadro** (destaque) ou **Continuar mesmo assim**. Desfazer não devolve tentativa.
+- Ao vencer, um modal (com botão fechar no canto) leva à próxima fase; fechado, o botão Dica vira **Próxima fase**.
+- Acima do tabuleiro: indicador das cores achadas e das que faltam, tentativas restantes e um aviso quando alguma marcação ✕ está errada.
 
 ## Estrutura
 

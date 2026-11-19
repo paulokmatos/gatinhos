@@ -13,6 +13,8 @@ export interface Saved {
   history: GameState['history'];
   redo: GameState['redo'];
   hintsUsed: number;
+  mistakes?: number;
+  continued?: boolean;
   startedAt: number;
   finishedAt: number | null;
   won: boolean;
@@ -36,6 +38,8 @@ export function serialize(level: number, g: GameState, symbols: boolean): Saved 
     history: g.history,
     redo: g.redo,
     hintsUsed: g.hintsUsed,
+    mistakes: g.mistakes,
+    continued: g.continued,
     startedAt: g.startedAt,
     finishedAt: g.finishedAt,
     won: g.won,
@@ -96,6 +100,8 @@ export function load(kv: KV): Loaded | null {
       history: s.history,
       redo: s.redo,
       hintsUsed: s.hintsUsed,
+      mistakes: Number.isInteger(s.mistakes) && s.mistakes! >= 0 ? s.mistakes! : 0,
+      continued: !!s.continued,
       finishedAt: typeof s.finishedAt === 'number' ? s.finishedAt : null,
       won: !!s.won,
     };

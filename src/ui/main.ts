@@ -1,9 +1,9 @@
 import './style.css';
-import { applyHint, canHint, dragX, elapsedMs, newGame, pressHint, redo, restart, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, tap, undo, type GameState } from '../core/game';
 import { findErrors } from '../core/hint';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
-import { COLOR_HEX, COLOR_SYMBOLS } from '../core/messages';
+import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL } from '../core/progression';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
@@ -21,6 +21,7 @@ let game: GameState | null = null;
 let loading = false;
 let prevStates: string[] | null = null;
 let prevPuzzle: Puzzle | null = null;
+let winClosed = false;
 
 const fmt = (ms: number) => {
   const s = Math.floor(ms / 1000);
@@ -32,6 +33,9 @@ const SPARK_COLORS = ['#FFD23F', '#FFFFFF', '#FF8FB1', '#7FD4FF'];
 const SPARK_DIRS = [[0, -26], [19, -19], [26, 0], [19, 19], [0, 26], [-19, 19], [-26, 0], [-19, -19]];
 const SPARKLES = SPARK_DIRS.map((d, k) => `<span class="spk" style="--dx:${d[0]}px;--dy:${d[1]}px;background:${SPARK_COLORS[k % 4]};animation-delay:${60 + (k % 2) * 40}ms"></span>`).join('');
 const CONFETTI = Array.from({ length: 22 }, (_, q) => `<span class="confetti" style="left:${(q * 37) % 100}%;background:${COLOR_HEX[q % 8]};animation-delay:${(q * 173) % 2400}ms"></span>`).join('');
+
+const PAW = (on: boolean) => `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="${on ? '#26262B' : '#B8C2CC'}"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>`;
+const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#2F6B5E" stroke-width="2.8" stroke-linecap="round"/></svg>';
 
 const stateName = { empty: 'vazia', x: 'marcada com X', cat: 'gatinho' } as const;
 
@@ -67,15 +71,23 @@ function render(): void {
 
   const found = new Set<number>();
   g.cells.forEach((m, i) => m.state === 'cat' && found.add(g.puzzle.regions[Math.floor(i / n)][i % n]));
-  $('progress').innerHTML = Array.from({ length: n }, (_, k) => `<span class="dot ${found.has(k) ? 'on' : ''}" style="background:${COLOR_HEX[k]}"></span>`).join('');
+  $('progress').innerHTML = Array.from({ length: n }, (_, k) => `<span class="dot ${found.has(k) ? 'on' : ''}" style="background:${COLOR_HEX[k]}" title="${COLOR_NAMES[k]}: ${found.has(k) ? 'achado' : 'falta'}">${found.has(k) ? catFace(16) : ''}</span>`).join('');
   $('found').textContent = `${found.size} de ${n} gatinhos`;
+  const missing = Array.from({ length: n }, (_, k) => k).filter((k) => !found.has(k)).map((k) => COLOR_NAMES[k]);
+  $('missing').textContent = missing.length ? `Faltam: ${missing.join(', ')}` : 'Todos achados!';
+  const left = attemptsLeft(g);
+  $('tries').innerHTML = Array.from({ length: MAX_ATTEMPTS }, (_, k) => PAW(k < left)).join('');
+  $('tries').setAttribute('aria-label', `${left} de ${MAX_ATTEMPTS} tentativas restantes`);
   $('warn').hidden = findErrors(g.puzzle, g.cells).length === 0 || g.won;
 
   $('title').textContent = `Nível ${level}`;
   $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
   ($('undo') as HTMLButtonElement).disabled = g.history.length === 0 || g.won;
   ($('redo') as HTMLButtonElement).disabled = g.redo.length === 0 || g.won;
-  ($('hintBtn') as HTMLButtonElement).disabled = !canHint(g);
+  const hintBtn = $('hintBtn') as HTMLButtonElement;
+  hintBtn.disabled = !g.won && !canHint(g);
+  hintBtn.dataset.mode = g.won ? 'next' : 'hint';
+  hintBtn.lastChild!.textContent = g.won ? ' Próxima fase' : ' Dica';
   $('symbols').setAttribute('aria-pressed', String(symbols));
 
   const hint = $('hint');
@@ -86,9 +98,12 @@ function render(): void {
   } else hint.hidden = true;
 
   const ov = $('overlay');
-  if (g.won) {
+  if (g.won && !winClosed) {
     ov.hidden = false;
-    ov.innerHTML = `${CONFETTI}<div class="card"><span class="bob">${catCheer(124)}</span><h2>Você achou todos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas usadas: ${g.hintsUsed}</p><button id="next" class="next">Próxima fase</button></div>`;
+    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Fase concluída"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas usadas: ${g.hintsUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próxima fase</button></div>`;
+  } else if (isLost(g)) {
+    ov.hidden = false;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Tentativas esgotadas"><span class="bob">${catFace(96)}</span><h2>Acabaram as tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste quadro.</p><button id="again" class="big">Reiniciar o quadro</button><button id="keep" class="ghost">Continuar mesmo assim</button></div>`;
   } else ov.hidden = true;
 }
 
@@ -108,6 +123,7 @@ async function startLevel(k: number): Promise<void> {
   const puzzle: Puzzle = res.ok ? res.puzzle : FIXED_LEVELS[(k - 1) % FIXED_LEVELS.length];
   loading = false;
   prevStates = null;
+  winClosed = false;
   update(newGame(puzzle));
 }
 
@@ -148,8 +164,10 @@ document.addEventListener('click', (e) => {
   if (!game || !id) return;
   if (id === 'undo') update(undo(game));
   else if (id === 'redo') update(redo(game));
-  else if (id === 'restart') update(restart(game));
-  else if (id === 'hintBtn') update(pressHint(game));
+  else if (id === 'restart' || id === 'again') { winClosed = false; update(restart(game)); }
+  else if (id === 'keep') update(continueAfterLoss(game));
+  else if (id === 'closeWin') { winClosed = true; render(); }
+  else if (id === 'hintBtn') { if (game.won) void startLevel(level + 1); else update(pressHint(game)); }
   else if (id === 'apply') update(applyHint(game));
   else if (id === 'symbols') { symbols = !symbols; update(game); }
   else if (id === 'next') void startLevel(level + 1);
@@ -164,5 +182,6 @@ if (saved) {
   level = saved.level;
   symbols = saved.symbols;
   game = saved.game;
+  winClosed = false;
   render();
 } else void startLevel(1);
