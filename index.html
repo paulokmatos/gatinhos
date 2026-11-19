@@ -49,7 +49,11 @@
       <p id="tip" class="tip">1 toque anota ✕ · 2 toques seguidos dão um palpite</p>
       <div id="hint" hidden></div>
       <div class="spacer"></div>
-      <div class="bar">
+      <nav id="endbar" class="bar" hidden>
+        <button id="again2" class="pill orange">Tentar novamente</button>
+        <button id="skip" class="pill white">Próximo nível</button>
+      </nav>
+      <div class="bar" id="mainbar">
         <button id="undo" class="pill white" aria-label="Desfazer">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 14 L4 9 L9 4 M4 9 H14 A6 6 0 0 1 14 21 H10" stroke="#2F6B5E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Desfazer

@@ -147,6 +147,18 @@ describe('progresso salvo no aparelho', () => {
   });
 });
 
+describe('pular nível depois de perder', () => {
+  it('avança o ponto de retomada sem contar como concluído', async () => {
+    const { skipLevel } = await import('../src/core/progress');
+    let p = defaultProgress();
+    p = skipLevel(p, 1);
+    expect(p.maxLevel).toBe(2);
+    expect(p.completed).toBe(0);
+    expect(skipLevel(p, 1).maxLevel).toBe(2); // nunca volta atrás
+    expect(skipLevel(p, 5).maxLevel).toBe(6);
+  });
+});
+
 describe('nome do jogador', () => {
   it('sanitiza, limita e persiste só neste aparelho', async () => {
     const { sanitizeName, setName, MAX_NAME } = await import('../src/core/progress');

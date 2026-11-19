@@ -4,7 +4,7 @@ import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
-import { loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, type Progress } from '../core/progress';
+import { loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { catCheer, catDot, catFace, catHint, catSad } from './cat';
@@ -22,6 +22,7 @@ let loading = false;
 let prevStates: string[] | null = null;
 let prevPuzzle: Puzzle | null = null;
 let winClosed = false;
+let lostClosed = false;
 let sheetKind: 'powers' | 'profile' | null = null;
 let confirming = false;
 let breakIdx = -1;
@@ -133,10 +134,17 @@ function render(): void {
   } else if (g.won && !winClosed) {
     ov.hidden = false;
     ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Nível concluído"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos os gatinhos!</h2><p>${progress.name ? `Parabéns, ${progress.name.replace(/[&<>]/g, '')}! ` : ''}Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas: ${g.hintsUsed} · Poderes: ${g.powersUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próximo nível</button></div>`;
-  } else if (isLost(g)) {
+  } else if (isLost(g) && !lostClosed) {
     ov.hidden = false;
-    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><span class="bob">${catSad(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="cta">Recomeçar nível</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Sem tentativas"><button id="closeLost" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catSad(96)}</span><h2>Sem tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste nível.</p><button id="again" class="cta">Tentar novamente</button><button id="keep" class="ghost">Continuar sem limite</button></div>`;
   } else ov.hidden = true;
+
+  // Perdeu e fechou o aviso: tabuleiro congelado e só duas saídas (tentar de novo ou seguir para o próximo nível)
+  const ended = isLost(g) && lostClosed;
+  $('app').classList.toggle('ended', ended);
+  $('endbar').hidden = !ended;
+  $('mainbar').hidden = ended;
+  if (ended) { $('hint').hidden = true; $('tip').hidden = true; }
 }
 
 function update(next: GameState): void {
@@ -145,7 +153,7 @@ function update(next: GameState): void {
     saveProgress(kv, progress);
   }
 if (game && next.mistakes > game.mistakes) {
-    if (isLost(next)) breakIdx = attemptsLeft(next);
+    if (isLost(next)) { breakIdx = attemptsLeft(next); window.setTimeout(() => { breakIdx = -1; if (game) render(); }, 1300); }
     else crack(attemptsLeft(next));
   }
   game = next;
@@ -158,6 +166,9 @@ function showLoading(k: number): void {
   const spec = specForLevel(k);
   const n = spec.size;
   $('app').classList.add('loading');
+  $('app').classList.remove('ended');
+  $('endbar').hidden = true;
+  $('mainbar').hidden = false;
   $('title').textContent = `Nível ${k}`;
   $('sub').textContent = `${DIFFICULTY_LABEL[spec.difficulty]} · ${n}×${n}`;
   const board = $('board');
@@ -209,6 +220,7 @@ async function startLevel(k: number): Promise<void> {
   $('app').classList.remove('loading');
   prevStates = null;
   winClosed = false;
+  lostClosed = false;
   sheetKind = null;
   confirming = false;
   update(newGame(puzzle));
@@ -265,8 +277,10 @@ document.addEventListener('click', (e) => {
   else if (id === 'redo') update(redo(game));
   else if (id === 'restart') { confirming = true; render(); }
   else if (id === 'cancelRestart') { confirming = false; render(); }
-  else if (id === 'confirmRestart' || id === 'again') { confirming = false; winClosed = false; update(restart(game)); }
-  else if (id === 'keep') update(continueAfterLoss(game));
+  else if (id === 'confirmRestart' || id === 'again' || id === 'again2') { confirming = false; winClosed = false; lostClosed = false; update(restart(game)); }
+  else if (id === 'keep') { lostClosed = false; update(continueAfterLoss(game)); }
+  else if (id === 'closeLost') { lostClosed = true; render(); }
+  else if (id === 'skip') { progress = skipLevel(progress, level); saveProgress(kv, progress); void startLevel(level + 1); }
   else if (id === 'closeWin') { winClosed = true; render(); }
   else if (id === 'hintBtn') { if (game.won) void startLevel(level + 1); else update(pressHint(game)); }
   else if (id === 'apply') update(applyHint(game));
@@ -300,5 +314,6 @@ if (saved) {
   symbols = saved.symbols;
   game = saved.game;
   winClosed = false;
+  lostClosed = false;
   render();
 } else void startLevel(progress.maxLevel);

@@ -64,3 +64,8 @@ export function recordCompletion(p: Progress, level: number, timeMs: number): Pr
 export function setName(p: Progress, raw: string): Progress {
   return { ...p, name: sanitizeName(raw) };
 }
+
+/** Pular para o próximo nível sem concluir este (depois de perder): só avança o ponto de retomada. */
+export function skipLevel(p: Progress, level: number): Progress {
+  return { ...p, maxLevel: Math.max(p.maxLevel, level + 1) };
+}

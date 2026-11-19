@@ -135,3 +135,6 @@ button:disabled { opacity: .5; cursor: default; }
 .pill { white-space: nowrap; min-width: 0; }
 .pill.orange[data-mode='next'] { font-size: 16px; }
 .pill svg { flex: none; }
+#app.ended #board { opacity: .55; filter: grayscale(.5); pointer-events: none; }
+#app.ended .tip { display: none; }
+.bar[hidden] { display: none; }

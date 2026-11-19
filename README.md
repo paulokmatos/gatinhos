@@ -52,7 +52,7 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
   <img src="docs/celular-carregando.png" alt="Preparando o nível" width="150" />
 </p>
 
-- **Sem tentativas?** Você escolhe: **Recomeçar nível** (recomendado) ou **Continuar sem limite**.
+- **Sem tentativas?** Um aviso oferece **Tentar novamente** (recomendado) ou **Continuar sem limite**. Se você fechar o aviso (✕), o tabuleiro fica congelado e a barra de baixo mostra só **Tentar novamente** e **Próximo nível**.
 - **Venceu?** Um aviso mostra seu tempo e as dicas usadas, com botão **Próximo nível** (e um ✕ para fechar e admirar o tabuleiro).
 
 ### ✨ Poderes
