@@ -190,3 +190,38 @@ describe('começar de um nível avançado', () => {
     expect(jumpTo(p, 1).maxLevel).toBe(1);
   });
 });
+
+describe('nota e histórico no progresso', () => {
+  it('progresso antigo (sem nota) parte do degrau da curva antiga; valores inválidos são ignorados', async () => {
+    const { ratingForLevel } = await import('../src/core/progress');
+    const kv = memory();
+    kv.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, name: '', completed: 3, maxLevel: 26, best: {} }));
+    const p = loadProgress(kv);
+    expect(p.rating).toBe(ratingForLevel(26));
+    expect(p.recent).toEqual([]);
+    kv.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, name: '', completed: 0, maxLevel: 1, best: {}, rating: 99, recent: [2, 'x', 0.5], lastPlayed: -4 }));
+    const q = loadProgress(kv);
+    expect(q.rating).toBeLessThanOrEqual(8);
+    expect(q.recent).toEqual([0.5]);
+    expect(q.lastPlayed).toBe(0);
+  });
+  it('recordResult: vitória perfeita sobe a nota; derrota desce e entra no histórico (máx. 5)', async () => {
+    const { recordResult } = await import('../src/core/progress');
+    const r = { won: true, mistakes: 0, hintsUsed: 0, powersUsed: 0, timeMs: 1000, size: 6 };
+    let p = { ...defaultProgress(), rating: 3 };
+    p = recordResult(p, r, 5);
+    expect(p.rating).toBeGreaterThan(3);
+    expect(p.lastPlayed).toBe(5);
+    const high = p.rating;
+    p = recordResult(p, { ...r, won: false }, 6);
+    expect(p.rating).toBeLessThan(high);
+    for (let i = 0; i < 8; i++) p = recordResult(p, r, 7);
+    expect(p.recent).toHaveLength(5);
+  });
+  it('ir para um nível redefine a nota por esse nível e zera o histórico', async () => {
+    const { jumpTo, ratingForLevel } = await import('../src/core/progress');
+    const p = jumpTo({ ...defaultProgress(), recent: [0, 0] }, 26);
+    expect(p.rating).toBe(ratingForLevel(26));
+    expect(p.recent).toEqual([]);
+  });
+});
