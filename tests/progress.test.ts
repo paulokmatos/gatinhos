@@ -11,8 +11,8 @@ const memory = (): KV & { data: Map<string, string> } => {
 };
 const P = FIXED_LEVELS[1];
 
-describe('progressão por lotes', () => {
-  it('1–30: lotes de 5 níveis, 5×5 → 10×10', () => {
+describe('progressão por etapas', () => {
+  it('1–30: etapas de 5 níveis, 5×5 → 10×10', () => {
     const sizes = [1, 6, 11, 16, 21, 26].map((k) => specForLevel(k).size);
     expect(sizes).toEqual([5, 6, 7, 8, 9, 10]);
     for (let k = 1; k <= 30; k++) expect(specForLevel(k).size).toBe(specForLevel(Math.ceil(k / 5) * 5).size);
@@ -37,7 +37,7 @@ describe('progressão por lotes', () => {
   });
 });
 
-describe('gatinho inicial (givens)', () => {
+describe('gatinho de brinde (givens)', () => {
   it('só em dificuldades altas e some aos poucos', () => {
     expect(givenChanceFor(1)).toBe(0);
     expect(givenChanceFor(20)).toBe(0);
@@ -59,7 +59,7 @@ describe('gatinho inicial (givens)', () => {
     }
     expect(withGiven).toBeGreaterThanOrEqual(0);
   });
-  it('a fase já começa com o gatinho, que não é desfeito e persiste', () => {
+  it('o nível já começa com o gatinho de brinde, que não é desfeito e persiste', () => {
     const given = pickGiven(P);
     const puzzle = { ...P, givens: [given] };
     let g = newGame(puzzle);

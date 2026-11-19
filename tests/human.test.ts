@@ -66,20 +66,20 @@ describe('CA11 classificação', () => {
     const map = { 1: 'facil', 2: 'facil', 3: 'medio', 4: 'medio', 5: 'dificil', 6: 'dificil', 7: 'expert' } as const;
     for (const [t, d] of Object.entries(map)) expect(difficultyOfTech(Number(t) as Tech)).toBe(d);
   });
-  it('fase que o solver humano não resolve é rejeitada pelo gerador de fases', () => {
+  it('nível que o solver humano não resolve é rejeitado pelo gerador de níveis', () => {
     const r = generateLevel(1, 1); // 1 tentativa: ou passa no filtro ou devolve erro tratado
     expect(typeof r.ok).toBe('boolean');
   });
 });
 
 describe('CA12 progressão determinística', () => {
-  it('fase K idêntica em duas execuções; seed só depende de K', () => {
+  it('nível K idêntico em duas execuções; seed só depende de K', () => {
     for (const k of [1, 22, 33, 52]) {
       expect(generateLevel(k)).toEqual(generateLevel(k));
       expect(seedForLevel(k)).toBe(seedForLevel(k));
     }
   });
-  it('fases 1–100: dificuldade nunca diminui e tamanho dentro da faixa', () => {
+  it('níveis 1–100: dificuldade nunca diminui e tamanho dentro da faixa', () => {
     const order: Difficulty[] = ['facil', 'medio', 'dificil', 'expert'];
     let prev = 0;
     for (let k = 1; k <= 100; k++) {
@@ -91,7 +91,7 @@ describe('CA12 progressão determinística', () => {
       expect(spec.size).toBeLessThanOrEqual(SIZE_RANGE[spec.difficulty][1]);
     }
   });
-  it('fases geradas 1–100 (amostra de cada faixa) respeitam a dificuldade da faixa', () => {
+  it('níveis gerados (amostra de cada faixa) respeitam a dificuldade da faixa', () => {
     for (const k of [10, 20, 30, 31, 41, 60]) {
       const r = generateLevel(k);
       expect(r.ok).toBe(true);

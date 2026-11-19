@@ -47,7 +47,7 @@ const catCell = (r: number) => idx(r, P.solution[r]);
 const wrong = (r: number) => idx(r, (P.solution[r] + 2) % P.size);
 
 describe('CA03 toque e arrasto', () => {
-  it('casa do gatinho: vazio → X → gatinho, e o gatinho não some ao tocar de novo', () => {
+  it('casa do gatinho: 1 toque marca ✕, 2º toque revela o gatinho, que não some ao tocar de novo', () => {
     let g = newGame(P);
     g = tap(g, catCell(0));
     expect(g.cells[catCell(0)].state).toBe('x');
@@ -55,7 +55,7 @@ describe('CA03 toque e arrasto', () => {
     expect(g.cells[catCell(0)].state).toBe('cat');
     expect(tap(g, catCell(0))).toBe(g);
   });
-  it('casa sem gatinho: o gatinho nunca aparece (vazio → X → vazio)', () => {
+  it('casa sem gatinho: o gatinho nunca aparece (✕ → vazio, gastando tentativa)', () => {
     let g = newGame(P);
     const seen = [];
     for (let i = 0; i < 4; i++) {
@@ -64,7 +64,7 @@ describe('CA03 toque e arrasto', () => {
     }
     expect(seen).toEqual(['x', 'empty', 'x', 'empty']);
   });
-  it('arrasto risca vazias sem sobrescrever gatinhos nem X', () => {
+  it('arrastar marca ✕ nas vazias sem sobrescrever gatinhos nem marcas', () => {
     let g = newGame(P);
     g = tap(tap(g, 1), 1); // 1 só vira gatinho se for casa dele; garante um gatinho conhecido
     g = tap(tap(g, catCell(4)), catCell(4));
@@ -78,20 +78,20 @@ describe('CA03 toque e arrasto', () => {
   });
 });
 
-describe('CA04 X é rascunho do jogador; desfazer, refazer e reiniciar', () => {
-  it('nunca marca X sozinho, nem ao revelar um gatinho', () => {
+describe('CA04 marca ✕ é anotação do jogador; desfazer, refazer e recomeçar', () => {
+  it('nunca marca ✕ sozinho, nem ao revelar um gatinho', () => {
     let g = newGame(P);
     g = tap(tap(g, catCell(0)), catCell(0));
     const xs = g.cells.filter((m) => m.state === 'x');
     expect(xs).toHaveLength(0);
     expect(g.cells.filter((m) => m.state === 'cat')).toHaveLength(1);
   });
-  it('X manual pode ficar em casa errada e permanece', () => {
+  it('marca ✕ pode ficar em casa errada e permanece', () => {
     let g = newGame(P);
     g = tap(g, catCell(1)); // X numa casa de gatinho: rascunho errado, permitido
     expect(g.cells[catCell(1)].state).toBe('x');
   });
-  it('desfazer/refazer só mexem em marcações X; gatinho nunca some', () => {
+  it('desfazer/refazer só mexem em marcas ✕; gatinho nunca some', () => {
     let g = newGame(P);
     g = tap(tap(g, catCell(0)), catCell(0)); // gatinho revelado
     g = tap(g, wrong(3));
@@ -113,7 +113,7 @@ describe('CA04 X é rascunho do jogador; desfazer, refazer e reiniciar', () => {
     expect(canUndo(g)).toBe(true);
     expect(canRedo(undo(g))).toBe(true);
   });
-  it('reiniciar limpa tabuleiro e histórico', () => {
+  it('recomeçar limpa tabuleiro e histórico', () => {
     let g = tap(newGame(P), 3);
     g = restart(g);
     expect(g.history).toHaveLength(0);

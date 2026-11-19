@@ -45,7 +45,7 @@ describe('CA23 persistência', () => {
     expect(back.game.startedAt).toBe(12345);
     expect(undo(back.game).cells[10].state).toBe('empty');
   });
-  it('armazenamento vazio ou corrompido → null (app começa na fase 1)', () => {
+  it('armazenamento vazio ou corrompido → null (app começa no nível 1)', () => {
     const kv = memory();
     expect(load(kv)).toBeNull();
     for (const bad of ['{', '[]', '{"version":1}', JSON.stringify({ version: 1, level: 1, puzzle: { size: 5 } }), 'null']) {

@@ -96,7 +96,7 @@ npm run build      # typecheck + build de produção
 - `src/core/` — lógica pura e testável: modelo, validador, gerador (seed + unicidade), solver de força bruta, solver humano T1–T7, dicas, estado do jogo (desfazer, tentativas), persistência.
 - `src/ui/` — interface (toque/arrasto, dicas, modais). A preparação dos níveis roda num Web Worker.
 - `tests/` — testes por marco; cada um cita o critério de aceite (CA01–CA25).
-- `docs/` — imagens deste README.
+- `docs/` — imagens deste README, o [glossário](docs/GLOSSARIO.md) e as [regras do jogo para novas sessões](docs/REGRAS.md) (os testes são a fonte de verdade; o que não é testável está lá). `CLAUDE.md` resume isso para agentes.
 
 **Técnicas do solver humano** (usadas na dificuldade e nas dicas): T1 único · T2 cor numa linha/coluna · T3 linha/coluna numa cor · T4 vizinhança · T5 N cores em N linhas/colunas · T6 N linhas/colunas em N cores · T7 hipótese de profundidade 1.
 Dificuldade: T1–T2 Fácil, T3–T4 Médio, T5–T6 Difícil, T7 Expert.
