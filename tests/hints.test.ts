@@ -17,7 +17,7 @@ const solCell = (r: number) => r * N + P.solution[r];
 const wrongCell = (r: number) => r * N + ((P.solution[r] + 2) % N);
 
 describe('CA13/CA14 erros', () => {
-  it('gato fora da solução: destaca com "tem algo errado aqui", sem solver', () => {
+  it('gatinho fora do lugar: destaca com "tem algo errado aqui", sem solver', () => {
     const g = put(newGame(P, {}), wrongCell(0), 'cat');
     const h = getHint(P, g.cells, g.lastMove)!;
     expect(h.kind).toBe('error');
@@ -25,7 +25,7 @@ describe('CA13/CA14 erros', () => {
     expect(h.message).toBe(ERROR_MESSAGE);
     expect(h.deduction).toBeUndefined();
   });
-  it('X em casa de gato da solução (manual ou auto) → mesmo comportamento', () => {
+  it('marca ✕ em casa de gatinho → mesmo comportamento', () => {
     const g = put(newGame(P, {}), solCell(2), 'x');
     expect(findErrors(P, g.cells)).toEqual([solCell(2)]);
     expect(getHint(P, g.cells, g.lastMove)!.message).toBe(ERROR_MESSAGE);
@@ -89,7 +89,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     if (!r.ok) throw new Error(r.error);
     return newGame(r.puzzle, {});
   };
-  it('3 toques: área → frase → Aplicar; toques 1 e 2 não contam', () => {
+  it('3 toques: motivo → o que fazer → Fazer por mim; toques 1 e 2 não contam', () => {
     let g = start();
     g = pressHint(g);
     expect(g.hint!.level).toBe(1);
@@ -105,7 +105,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     expect(g.hint).toBeNull();
     expect(pressHint(g).hint!.level).toBe(1);
   });
-  it('Aplicar: uma entrada no history (só marcações), desfazer reverte os X, hintsUsed +1', () => {
+  it('Fazer por mim: uma entrada no histórico (só marcas ✕), desfazer reverte os ✕, hintsUsed +1', () => {
     let g = start();
     g = pressHint(pressHint(pressHint(g)));
     const before = g.history.length;
@@ -120,7 +120,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     for (const x of target.xs) expect(g.cells[x].state).toBe('empty');
     for (const c of target.cats) expect(g.cells[c].state).toBe('cat');
   });
-  it('Aplicar só funciona no 3º toque', () => {
+  it('Fazer por mim só funciona no 3º toque', () => {
     const g = pressHint(start());
     expect(applyHint(g)).toBe(g);
   });
@@ -137,6 +137,22 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     expect(canHint(g)).toBe(false);
     expect(pressHint(g)).toBe(g);
     expect(g.hintsUsed).toBeGreaterThan(0);
+  });
+});
+
+describe('dica explica o porquê (motivo → o que fazer)', () => {
+  it('o texto do 1º toque (motivo) abre o texto do 2º (o que fazer); erro não oferece "Fazer por mim"', () => {
+    const r = generateLevel(1);
+    if (!r.ok) throw new Error(r.error);
+    const p = r.puzzle;
+    const empty = Array.from({ length: p.size ** 2 }, () => ({ state: 'empty' as const }));
+    const h = getHint(p, empty, null)!;
+    expect(h.areaCells.length).toBeGreaterThan(0); // casas da premissa
+    expect(h.message.startsWith(h.areaText)).toBe(true);
+    expect(h.apply).not.toBeNull();
+    const emptyP = Array.from({ length: N * N }, () => ({ state: 'empty' as const }));
+    const wrongCells = emptyP.map((m, i) => (i === wrongCell(0) ? { state: 'cat' as const } : m));
+    expect(getHint(P, wrongCells, null)!.apply).toBeNull();
   });
 });
 

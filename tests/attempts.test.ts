@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attemptsLeft, canHint, continueAfterLoss, dragX, isLost, MAX_ATTEMPTS, newGame, restart, tap, undo } from '../src/core/game';
+import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, isLost, MAX_ATTEMPTS, newGame, restart, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { load, save, type KV } from '../src/core/storage';
 
@@ -8,8 +8,8 @@ const wrong = (r: number) => r * P.size + ((P.solution[r] + 2) % P.size);
 const right = (r: number) => r * P.size + P.solution[r];
 const guess = (g: ReturnType<typeof newGame>, i: number) => tap(tap(g, i), i); // X e depois tenta o gatinho
 
-describe('tentativas (máx. 3 por quadro)', () => {
-  it('começa com 3; acertar não gasta; errar o palpite gasta 1', () => {
+describe('tentativas (máx. 3 por nível)', () => {
+  it('começa com 3; palpite certo não gasta; palpite errado gasta 1', () => {
     let g = newGame(P);
     expect(MAX_ATTEMPTS).toBe(3);
     expect(attemptsLeft(g)).toBe(3);
@@ -20,7 +20,7 @@ describe('tentativas (máx. 3 por quadro)', () => {
     expect(g.cells[wrong(1)].state).toBe('empty');
     expect(attemptsLeft(g)).toBe(2);
   });
-  it('X de rascunho e arrasto nunca gastam tentativas', () => {
+  it('marca ✕ e arrastar nunca gastam tentativas', () => {
     let g = tap(newGame(P), right(2));
     g = dragX(g, [0, 1, 2, 3, 4]);
     expect(g.mistakes).toBe(0);
@@ -30,7 +30,7 @@ describe('tentativas (máx. 3 por quadro)', () => {
     g = undo(g);
     expect(g.mistakes).toBe(1);
   });
-  it('3 erros = fase perdida: jogo trava até reiniciar ou continuar', () => {
+  it('3 palpites errados = nível perdido: trava até tentar novamente ou continuar sem limite', () => {
     let g = newGame(P);
     for (let r = 0; r < 3; r++) g = guess(g, wrong(r));
     expect(isLost(g)).toBe(true);
@@ -43,7 +43,7 @@ describe('tentativas (máx. 3 por quadro)', () => {
     expect(r.mistakes).toBe(0);
     expect(r.cells.every((m) => m.state === 'empty')).toBe(true);
   });
-  it('tentativas e "continuar" persistem', () => {
+  it('tentativas e "continuar sem limite" persistem', () => {
     const data = new Map<string, string>();
     const kv: KV = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v) };
     let g = newGame(P);
@@ -56,7 +56,7 @@ describe('tentativas (máx. 3 por quadro)', () => {
   });
 });
 
-describe('dois toques seguidos = 1 tentativa (X não importa, só haver gatinho)', () => {
+describe('duplo toque (2 toques rápidos) = 1 palpite (a marca ✕ não importa, só haver gatinho)', () => {
   it('2 toques numa casa com gatinho: acerta, sem gastar tentativa', () => {
     const g = tap(tap(newGame(P), right(0)), right(0));
     expect(g.cells[right(0)].state).toBe('cat');
@@ -67,11 +67,20 @@ describe('dois toques seguidos = 1 tentativa (X não importa, só haver gatinho)
     expect(g.cells[wrong(0)].state).toBe('empty');
     expect(g.mistakes).toBe(1);
   });
-  it('casa já riscada (ex.: arrasto): o 1º toque só arma, o 2º é a tentativa', () => {
+  it('2º toque fora da janela do duplo toque não é palpite: só arma de novo', () => {
+    let g = tap(newGame(P), wrong(0), 1000);
+    g = tap(g, wrong(0), 1000 + DOUBLE_TAP_MS + 1);
+    expect(g.mistakes).toBe(0);
+    expect(g.cells[wrong(0)].state).toBe('empty'); // toque lento numa casa com ✕ também tira a marca
+    g = tap(g, wrong(0), 3000);
+    g = tap(g, wrong(0), 3100); // 1º toque põe ✕, o seguinte (rápido) é o palpite
+    expect(g.mistakes).toBe(1);
+  });
+  it('casa já marcada com ✕ (ex.: arrastar): o 1º toque tira o ✕ na hora, o 2º (rápido) é a tentativa', () => {
     let g = dragX(newGame(P), [wrong(1), right(2)]);
     g = tap(g, wrong(1));
     expect(g.mistakes).toBe(0);
-    expect(g.cells[wrong(1)].state).toBe('x'); // nada mudou ainda
+    expect(g.cells[wrong(1)].state).toBe('empty'); // ✕ removido sem esperar
     g = tap(g, wrong(1));
     expect(g.mistakes).toBe(1);
     expect(g.cells[wrong(1)].state).toBe('empty');
@@ -84,8 +93,27 @@ describe('dois toques seguidos = 1 tentativa (X não importa, só haver gatinho)
     let g = newGame(P);
     g = tap(g, wrong(0));
     g = tap(g, wrong(1));
-    g = tap(g, wrong(0)); // voltou: já tinha X e outro toque no meio → só arma
+    g = tap(g, wrong(0)); // voltou: outro toque no meio, então não é palpite: só tira o ✕
     expect(g.mistakes).toBe(0);
-    expect(g.cells[wrong(0)].state).toBe('x');
+    expect(g.cells[wrong(0)].state).toBe('empty');
+  });
+});
+
+describe('recomeçar nível (sem gerar outras posições)', () => {
+  it('limpa tabuleiro e tentativas, mantém exatamente o mesmo nível', () => {
+    let g = newGame(P);
+    g = tap(tap(g, right(0)), right(0));
+    g = tap(tap(g, wrong(1)), wrong(1));
+    expect(g.mistakes).toBe(1);
+    const r = restart(g);
+    expect(r.puzzle).toBe(g.puzzle); // mesmo objeto: nada foi regerado
+    expect(r.puzzle.solution).toEqual(P.solution);
+    expect(r.mistakes).toBe(0);
+    expect(r.cells.every((m) => m.state === 'empty')).toBe(true);
+  });
+  it('gatinhos de brinde continuam no lugar depois de recomeçar', () => {
+    const given = P.solution[0];
+    const r = restart(newGame({ ...P, givens: [given] }));
+    expect(r.cells[given].state).toBe('cat');
   });
 });

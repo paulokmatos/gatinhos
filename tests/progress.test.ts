@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { newGame, revealCat, tap, undo } from '../src/core/game';
+import { canReveal, newGame, restart, revealCat, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { generateLevel, givenChanceFor, pickGiven, SIZE_RANGE, specForLevel } from '../src/core/progression';
-import { defaultProgress, EARN_EVERY, loadProgress, PROGRESS_KEY, recordCompletion, saveProgress, spendReveal, START_REVEALS } from '../src/core/progress';
+import { defaultProgress, loadProgress, PROGRESS_KEY, recordCompletion, saveProgress } from '../src/core/progress';
 import { load, save, type KV } from '../src/core/storage';
 
 const memory = (): KV & { data: Map<string, string> } => {
@@ -11,8 +11,8 @@ const memory = (): KV & { data: Map<string, string> } => {
 };
 const P = FIXED_LEVELS[1];
 
-describe('progressão por lotes', () => {
-  it('1–30: lotes de 5 níveis, 5×5 → 10×10', () => {
+describe('progressão por etapas', () => {
+  it('1–30: etapas de 5 níveis, 5×5 → 10×10', () => {
     const sizes = [1, 6, 11, 16, 21, 26].map((k) => specForLevel(k).size);
     expect(sizes).toEqual([5, 6, 7, 8, 9, 10]);
     for (let k = 1; k <= 30; k++) expect(specForLevel(k).size).toBe(specForLevel(Math.ceil(k / 5) * 5).size);
@@ -37,7 +37,7 @@ describe('progressão por lotes', () => {
   });
 });
 
-describe('gatinho inicial (givens)', () => {
+describe('gatinho de brinde (givens)', () => {
   it('só em dificuldades altas e some aos poucos', () => {
     expect(givenChanceFor(1)).toBe(0);
     expect(givenChanceFor(20)).toBe(0);
@@ -59,7 +59,7 @@ describe('gatinho inicial (givens)', () => {
     }
     expect(withGiven).toBeGreaterThanOrEqual(0);
   });
-  it('a fase já começa com o gatinho, que não é desfeito e persiste', () => {
+  it('o nível já começa com o gatinho de brinde, que não é desfeito e persiste', () => {
     const given = pickGiven(P);
     const puzzle = { ...P, givens: [given] };
     let g = newGame(puzzle);
@@ -91,10 +91,19 @@ describe('poder: revelar um gatinho', () => {
     expect(g.history).toHaveLength(0);
     expect(undo(g)).toBe(g);
   });
-  it('revela todos, um por vez, e vence; depois não faz nada', () => {
+  it('só 1 uso por nível: o 2º não faz nada; recomeçar devolve o uso', () => {
+    let g = revealCat(newGame(P));
+    expect(canReveal(g)).toBe(false);
+    expect(revealCat(g)).toBe(g);
+    expect(g.cells.filter((m) => m.state === 'cat')).toHaveLength(1);
+    g = restart(g);
+    expect(canReveal(g)).toBe(true);
+  });
+  it('depois de vencer não revela mais', () => {
     let g = newGame(P);
-    for (let i = 0; i < P.size; i++) g = revealCat(g);
+    for (let r = 0; r < P.size; r++) g = tap(tap(g, r * P.size + P.solution[r]), r * P.size + P.solution[r]);
     expect(g.won).toBe(true);
+    expect(canReveal(g)).toBe(false);
     expect(revealCat(g)).toBe(g);
   });
   it('substitui um X errado na casa', () => {
@@ -106,22 +115,19 @@ describe('poder: revelar um gatinho', () => {
 });
 
 describe('progresso salvo no aparelho', () => {
-  it('começa com poderes e vazio; vazio/corrompido volta ao padrão', () => {
+  it('começa vazio; vazio/corrompido volta ao padrão', () => {
     const kv = memory();
     expect(loadProgress(kv)).toEqual(defaultProgress());
-    expect(defaultProgress().powers.reveal).toBe(START_REVEALS);
     for (const bad of ['{', 'null', '{"version":1,"completed":-1}', '{"version":2}']) {
       kv.setItem(PROGRESS_KEY, bad);
       expect(loadProgress(kv)).toEqual(defaultProgress());
     }
   });
-  it('concluir nível avança, guarda melhor tempo e dá poder a cada ' + EARN_EVERY + ' níveis', () => {
+  it('concluir nível avança e guarda o melhor tempo', () => {
     let p = defaultProgress();
     p = recordCompletion(p, 1, 9000);
     p = recordCompletion(p, 2, 8000);
-    expect(p.powers.reveal).toBe(START_REVEALS);
     p = recordCompletion(p, 3, 7000);
-    expect(p.powers.reveal).toBe(START_REVEALS + 1);
     expect(p.maxLevel).toBe(4);
     expect(p.completed).toBe(3);
     p = recordCompletion(p, 1, 12000); // refazer não piora o recorde
@@ -129,17 +135,58 @@ describe('progresso salvo no aparelho', () => {
     p = recordCompletion(p, 1, 5000);
     expect(p.best['1']).toBe(5000);
   });
-  it('gasta poder e não fica negativo; persiste', () => {
-    let p = defaultProgress();
-    p = spendReveal(spendReveal(p)!)!;
-    expect(p.powers.reveal).toBe(0);
-    expect(spendReveal(p)).toBeNull();
+  it('persiste o progresso', () => {
     const kv = memory();
-    saveProgress(kv, recordCompletion(p, 1, 1000));
+    saveProgress(kv, recordCompletion(defaultProgress(), 1, 1000));
     expect(loadProgress(kv).completed).toBe(1);
   });
+
   it('falha ao gravar não derruba o app', () => {
     const kv: KV = { getItem: () => null, setItem: () => { throw new Error('quota'); } };
     expect(() => saveProgress(kv, defaultProgress())).not.toThrow();
+  });
+});
+
+describe('pular nível depois de perder', () => {
+  it('avança o ponto de retomada sem contar como concluído', async () => {
+    const { skipLevel } = await import('../src/core/progress');
+    let p = defaultProgress();
+    p = skipLevel(p, 1);
+    expect(p.maxLevel).toBe(2);
+    expect(p.completed).toBe(0);
+    expect(skipLevel(p, 1).maxLevel).toBe(2); // nunca volta atrás
+    expect(skipLevel(p, 5).maxLevel).toBe(6);
+  });
+});
+
+describe('nome do jogador', () => {
+  it('sanitiza, limita e persiste só neste aparelho', async () => {
+    const { sanitizeName, setName, MAX_NAME } = await import('../src/core/progress');
+    expect(sanitizeName('  Paulo   Matos  ')).toBe('Paulo Matos');
+    expect(sanitizeName('<b>Ana</b>\n')).toBe('bAna/b');
+    expect(sanitizeName('x'.repeat(50))).toHaveLength(MAX_NAME);
+    expect(sanitizeName('')).toBe('');
+    const kv = memory();
+    saveProgress(kv, setName(defaultProgress(), 'Lia'));
+    expect(loadProgress(kv).name).toBe('Lia');
+    kv.setItem(PROGRESS_KEY, JSON.stringify({ ...defaultProgress(), name: 42 }));
+    expect(loadProgress(kv).name).toBe('');
+  });
+});
+
+describe('começar de um nível avançado', () => {
+  it('?nivel=N só aceita 1–999', async () => {
+    const { parseLevelParam } = await import('../src/core/progress');
+    expect(parseLevelParam('?nivel=26')).toBe(26);
+    expect(parseLevelParam('?x=1&nivel=7')).toBe(7);
+    for (const bad of ['', '?nivel=0', '?nivel=-3', '?nivel=abc', '?nivel=1000', '?nivel=2.5', '?nivel=']) expect(parseLevelParam(bad)).toBeNull();
+  });
+  it('pular para um nível muda o ponto de retomada (também para trás)', async () => {
+    const { jumpTo } = await import('../src/core/progress');
+    let p = recordCompletion(defaultProgress(), 1, 1000);
+    p = jumpTo(p, 26);
+    expect(p.maxLevel).toBe(26);
+    expect(p.completed).toBe(1);
+    expect(jumpTo(p, 1).maxLevel).toBe(1);
   });
 });

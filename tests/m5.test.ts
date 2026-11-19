@@ -45,7 +45,7 @@ describe('CA23 persistência', () => {
     expect(back.game.startedAt).toBe(12345);
     expect(undo(back.game).cells[10].state).toBe('empty');
   });
-  it('armazenamento vazio ou corrompido → null (app começa na fase 1)', () => {
+  it('armazenamento vazio ou corrompido → null (app começa no nível 1)', () => {
     const kv = memory();
     expect(load(kv)).toBeNull();
     for (const bad of ['{', '[]', '{"version":1}', JSON.stringify({ version: 1, level: 1, puzzle: { size: 5 } }), 'null']) {
@@ -62,5 +62,37 @@ describe('CA23 persistência', () => {
   it('falha ao gravar não derruba o app', () => {
     const kv: KV = { getItem: () => null, setItem: () => { throw new Error('quota'); } };
     expect(() => save(kv, 1, pressHint(newGame(FIXED_LEVELS[0])), false)).not.toThrow();
+  });
+});
+
+describe('a solução não fica exposta no localStorage', () => {
+  it('o salvo não contém "solution" e a solução é recalculada ao carregar', () => {
+    for (const puzzle of FIXED_LEVELS) {
+      const kv = memory();
+      save(kv, 1, newGame(puzzle), false);
+      const raw = kv.getItem(STORAGE_KEY)!;
+      expect(raw).not.toMatch(/solution/i);
+      const back = load(kv)!;
+      expect(back.game.puzzle.solution).toEqual(puzzle.solution);
+    }
+  });
+  it('save antigo (com solution) é lido e reescrito sem ela', () => {
+    const kv = memory();
+    save(kv, 1, newGame(FIXED_LEVELS[0]), false);
+    const obj = JSON.parse(kv.getItem(STORAGE_KEY)!);
+    obj.puzzle.solution = [9, 9, 9, 9, 9]; // lixo: é ignorado
+    kv.setItem(STORAGE_KEY, JSON.stringify(obj));
+    const back = load(kv)!;
+    expect(back.game.puzzle.solution).toEqual(FIXED_LEVELS[0].solution);
+    save(kv, 1, back.game, false);
+    expect(kv.getItem(STORAGE_KEY)).not.toMatch(/solution/i);
+  });
+  it('fase adulterada (sem solução única) é descartada', () => {
+    const kv = memory();
+    save(kv, 1, newGame(FIXED_LEVELS[0]), false);
+    const obj = JSON.parse(kv.getItem(STORAGE_KEY)!);
+    obj.puzzle.regions = obj.puzzle.regions.map((row: number[]) => row.map(() => 0));
+    kv.setItem(STORAGE_KEY, JSON.stringify(obj));
+    expect(load(kv)).toBeNull();
   });
 });

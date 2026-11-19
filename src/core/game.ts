@@ -4,6 +4,8 @@ import type { Mark, Puzzle } from './types';
 import { conflictIndexes } from './validator';
 
 export const MAX_ATTEMPTS = 3;
+/** usos do poder "Revelar gatinho" por nível */
+export const MAX_REVEALS = 1;
 
 export interface Change {
   index: number;
@@ -23,6 +25,8 @@ export interface GameState {
   powersUsed: number;
   /** casa que recebeu o toque anterior: um 2º toque seguido nela é uma tentativa */
   armed: number | null;
+  /** instante (ms) do toque que armou a casa */
+  armedAt: number;
   /** o jogador escolheu continuar depois de perder */
   continued: boolean;
   startedAt: number;
@@ -49,6 +53,7 @@ export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState 
     mistakes: 0,
     powersUsed: 0,
     armed: null,
+    armedAt: 0,
     continued: false,
     startedAt: opts.now ?? Date.now(),
     finishedAt: null,
@@ -78,6 +83,7 @@ function commit(g: GameState, changes: Change[], last: number | null): GameState
     lastMove: last,
     hint: null,
     armed: null,
+    armedAt: 0,
   });
 }
 
@@ -98,27 +104,32 @@ export function conflicts(g: GameState): Set<number> {
   return conflictIndexes(g.puzzle, g.cells);
 }
 
+/** Janela do duplo toque: o 2º toque só vale se vier até este tempo depois do 1º. */
+export const DOUBLE_TAP_MS = 400;
+
 /**
- * Dois toques seguidos na mesma casa = uma tentativa de achar o gatinho. O que decide acerto ou erro é
+ * Duplo toque (2 toques na mesma casa em até DOUBLE_TAP_MS) = uma tentativa de achar o gatinho. O que decide acerto ou erro é
  * só haver (ou não) um gatinho ali; ter ou não um X na casa não importa.
- *  - 1º toque: casa vazia vira X (anotação do jogador, nunca automática); casa já com X só fica "armada".
- *  - 2º toque seguido: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
+ *  - 1º toque: casa vazia vira X (anotação do jogador, nunca automática); casa com X perde o X na hora.
+ *  - 2º toque dentro da janela: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
  * Um gatinho revelado não some ao tocar de novo.
  */
-export function tap(g: GameState, i: number): GameState {
+export function tap(g: GameState, i: number, now = Date.now()): GameState {
   if (locked(g)) return g;
   const before = g.cells[i];
   if (before.state === 'cat') return g.armed === null ? g : { ...g, armed: null };
   const n = g.puzzle.size;
   const isCatCell = g.puzzle.solution[Math.floor(i / n)] === i % n;
-  if (g.armed === i) {
+  if (g.armed === i && now - g.armedAt <= DOUBLE_TAP_MS) {
     const after: Mark = isCatCell ? { state: 'cat' } : { ...EMPTY };
     const next = commit(g, before.state === after.state ? [] : [{ index: i, before, after }], i);
     const base = next === g ? { ...g, lastMove: i, hint: null } : next;
     return { ...base, armed: null, mistakes: isCatCell ? g.mistakes : g.mistakes + 1 };
   }
-  if (before.state === 'empty') return { ...commit(g, [{ index: i, before, after: { state: 'x' } }], i), armed: i };
-  return { ...g, armed: i, hint: null };
+  // toque numa casa com ✕ (fora de um duplo toque): tira a marca na hora e arma a casa; um 2º toque rápido é o palpite
+  if (before.state === 'x') return { ...commit(g, [{ index: i, before, after: { ...EMPTY } }], i), armed: i, armedAt: now };
+  if (before.state === 'empty') return { ...commit(g, [{ index: i, before, after: { state: 'x' } }], i), armed: i, armedAt: now };
+  return g;
 }
 
 /** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatinhos (nem marcas ✕). */
@@ -163,12 +174,14 @@ export function redo(g: GameState): GameState {
 }
 
 /**
- * Poder "Revelar um gatinho": mostra um gatinho ainda não achado, sem gastar tentativa.
+ * Poder "Revelar gatinho" (1 vez por nível): mostra um gatinho ainda não achado, sem gastar tentativa.
  * Escolhe o da cor com mais casas livres (a mais difícil de deduzir), empate pela menor posição.
  * Entra no histórico como uma única jogada.
  */
+export const canReveal = (g: GameState) => !locked(g) && g.powersUsed < MAX_REVEALS;
+
 export function revealCat(g: GameState): GameState {
-  if (locked(g)) return g;
+  if (!canReveal(g)) return g;
   const n = g.puzzle.size;
   const s = stateFromMarks(g.puzzle, g.cells);
   let best = -1;

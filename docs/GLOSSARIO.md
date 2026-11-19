@@ -36,10 +36,14 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 | Limite de erros | "3 tentativas por quadro" | **3 tentativas por nível** (🐾🐾🐾) | vidas, chances vs. tentativas misturados | Escolha única: "tentativas". |
 | Perder uma tentativa | "errar o palpite" | **Palpite errado** | falha, erro | Texto: "Aqui não tem gatinho. Você perdeu 1 tentativa." |
 | Fim das tentativas | "Acabaram as tentativas" | **Sem tentativas** | game over | Corpo: "Você usou as 3 tentativas deste nível." |
-| Ação principal | "Reiniciar o quadro" | **Recomeçar nível** | — | Botão em destaque. |
+| Ação principal | "Reiniciar o quadro" | **Tentar novamente** (no aviso de sem tentativas); **Recomeçar nível** no cabeçalho | — | Botão em destaque. Depois de fechar o aviso: **Tentar novamente** · **Próximo nível**. |
 | Ação secundária | "Continuar mesmo assim" | **Continuar sem limite** | continuar mesmo assim | Deixa claro que não há mais penalidade. |
 | Vitória | "Você achou todos!" | **Você achou todos os gatinhos!** | — | Mostra tempo, dicas, poderes usados. |
 | Fechar o aviso de vitória | ✕ | **Fechar** | — | Depois, o botão vira "Próximo nível". |
+
+| Escolher como ser chamado | — | **Seu nome** (opcional, só neste aparelho) | login, conta, perfil | Círculo ao lado de Símbolos. |
+| Confirmar recomeço | — | **Recomeçar nível?** — "Recomeçar" / "Cancelar" | tem certeza?, OK | Não regera o tabuleiro. |
+| Começar de outro nível | — | **Ir para um nível** / **Começar nesse nível** (e `?nivel=N`) | pular, fast-forward | Fica na folha do seu nome. |
 
 ## Ajuda
 
@@ -51,7 +55,7 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 | Passo 3 | "Aplicar" | **Fazer por mim** | aplicar | Só este passo conta como dica usada. |
 | Poderes | "Poderes" | **Poderes** | itens, boosts, power-ups | |
 | Primeiro poder | "Revelar um gatinho" | **Revelar gatinho** | — | Não gasta tentativa. |
-| Cargas | "cargas" | **usos** (ex.: "3 usos") | cargas, créditos | Ganha +1 uso a cada 3 níveis concluídos. |
+
 | Gatinho que já vem na tela | "gatinho inicial", "given" | **Gatinho de brinde** | given, inicial | Contorno tracejado. |
 
 ## Mensagens do tabuleiro
