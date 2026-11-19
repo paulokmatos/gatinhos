@@ -174,6 +174,6 @@ describe('CA19 mensagens', () => {
   });
   it('exemplo T5 em texto', () => {
     const msg = hintMessage({ tech: 5, cats: [], xs: [0], lineKind: 'col', lines: [4, 5], regions: [3, 7], premise: [] }, 10);
-    expect(msg).toBe('As cores Jabuticaba e Flor só têm casas nas colunas 5 e 6. Elas ocupam essas colunas, então as casas de outras cores nelas não podem ter gatinho: risque-as.');
+    expect(msg).toBe('As cores Roxo e Rosa só têm casas nas colunas 5 e 6. Elas ocupam essas colunas, então as casas de outras cores nelas não podem ter gatinho: marque ✕ nelas.');
   });
 });

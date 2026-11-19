@@ -17,9 +17,9 @@ export interface GameState {
   history: Change[][];
   redo: Change[][];
   hintsUsed: number;
-  /** erros do jogador (X em casa de gatinho); ao chegar em MAX_ATTEMPTS a fase é perdida */
+  /** erros do jogador (X em casa de gatinho); ao chegar em MAX_ATTEMPTS o nível é perdido */
   mistakes: number;
-  /** poderes usados nesta fase */
+  /** poderes usados neste nível */
   powersUsed: number;
   /** casa que recebeu o toque anterior: um 2º toque seguido nela é uma tentativa */
   armed: number | null;
@@ -101,7 +101,7 @@ export function conflicts(g: GameState): Set<number> {
 /**
  * Dois toques seguidos na mesma casa = uma tentativa de achar o gatinho. O que decide acerto ou erro é
  * só haver (ou não) um gatinho ali; ter ou não um X na casa não importa.
- *  - 1º toque: casa vazia vira X (rascunho do jogador, nunca automático); casa já com X só fica "armada".
+ *  - 1º toque: casa vazia vira X (anotação do jogador, nunca automática); casa já com X só fica "armada".
  *  - 2º toque seguido: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
  * Um gatinho revelado não some ao tocar de novo.
  */
@@ -121,7 +121,7 @@ export function tap(g: GameState, i: number): GameState {
   return { ...g, armed: i, hint: null };
 }
 
-/** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatos (nem X). */
+/** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatinhos (nem marcas ✕). */
 export function dragX(g: GameState, path: number[]): GameState {
   if (locked(g)) return g;
   const seen = new Set<number>();
@@ -200,7 +200,7 @@ export function canHint(g: GameState): boolean {
   return !locked(g);
 }
 
-/** Toque no botão de dica: 1 = área, 2 = frase, 3 = botão Aplicar. Não conta em hintsUsed. */
+/** Toque no botão de dica: 1 = área, 2 = frase, 3 = botão Fazer por mim. Não conta em hintsUsed. */
 export function pressHint(g: GameState): GameState {
   if (!canHint(g)) return g;
   if (!g.hint) {
@@ -211,7 +211,7 @@ export function pressHint(g: GameState): GameState {
   return { ...g, hint: { ...g.hint, level: (g.hint.level + 1) as 2 | 3 } };
 }
 
-/** Aplicar (só no nível 3): marca o passo numa única entrada de histórico; hintsUsed +1. */
+/** Fazer por mim (só no nível 3): marca o passo numa única entrada de histórico; hintsUsed +1. */
 export function applyHint(g: GameState): GameState {
   const h = g.hint;
   if (!h || h.level !== 3 || !h.data.apply || locked(g)) return g;

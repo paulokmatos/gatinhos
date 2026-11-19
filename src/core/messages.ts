@@ -1,6 +1,6 @@
 import type { Deduction } from './human';
 
-export const COLOR_NAMES = ['Aguapé', 'Ipê', 'Pitanga', 'Jabuticaba', 'Céu', 'Capim', 'Barro claro', 'Flor', 'Tangerina', 'Neblina'];
+export const COLOR_NAMES = ['Menta', 'Amarelo', 'Coral', 'Roxo', 'Azul', 'Verde', 'Marrom', 'Rosa', 'Laranja', 'Cinza'];
 export const COLOR_HEX = ['#8FD3C1', '#F4C542', '#F28C7A', '#9B7BD1', '#8EC5F0', '#A9D86E', '#D9A273', '#F2A7C8', '#F7A955', '#B8C2CC'];
 export const COLOR_SYMBOLS = ['●', '▲', '■', '◆', '★', '✚', '⬟', '♥', '☾', '✿'];
 
@@ -54,15 +54,15 @@ export function hintMessage(d: Deduction, size: number): string {
       return `${premise} Ela fica na linha ${r}, coluna ${c}: coloque um gatinho lá.`;
     }
     case 2:
-      return `${premise} Então o gatinho da ${colors(d.regions)} está nela, e as outras casas dessa ${lineWord(d.lineKind, 1)} (que não são dessa cor) não podem ter gatinho: risque-as.`;
+      return `${premise} Então o gatinho da ${colors(d.regions)} está nela, e as outras casas dessa ${lineWord(d.lineKind, 1)} (que não são dessa cor) não podem ter gatinho: marque ✕ nelas.`;
     case 3:
-      return `${premise} Então o gatinho dessa ${lineWord(d.lineKind, 1)} é da ${colors(d.regions)}, e as casas dessa cor fora dela não podem ter gatinho: risque-as.`;
+      return `${premise} Então o gatinho dessa ${lineWord(d.lineKind, 1)} é da ${colors(d.regions)}, e as casas dessa cor fora dela não podem ter gatinho: marque ✕ nelas.`;
     case 4:
     case 7:
-      return `${premise} Então não pode haver gatinho ali: risque essa casa.`;
+      return `${premise} Então não pode haver gatinho ali: marque ✕ nessa casa.`;
     case 5:
-      return `${premise} Elas ocupam essas ${lineWord(d.lineKind, 2)}, então as casas de outras cores nelas não podem ter gatinho: risque-as.`;
+      return `${premise} Elas ocupam essas ${lineWord(d.lineKind, 2)}, então as casas de outras cores nelas não podem ter gatinho: marque ✕ nelas.`;
     case 6:
-      return `${premise} Os gatinhos dessas ${lineWord(d.lineKind, 2)} serão dessas cores, então as outras casas dessas cores, fora delas, não podem ter gatinho: risque-as.`;
+      return `${premise} Os gatinhos dessas ${lineWord(d.lineKind, 2)} serão dessas cores, então as outras casas dessas cores, fora delas, não podem ter gatinho: marque ✕ nelas.`;
   }
 }

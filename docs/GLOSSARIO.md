@@ -1,7 +1,7 @@
 # Glossário de termos do jogo (para revisão)
 
 Objetivo: um vocabulário único, simples e consistente em toda a interface, mensagens, README e código visível ao jogador.
-**Nada aqui foi aplicado ainda** — revise a coluna "Proposta" e me diga o que mudar.
+**Status: aprovado e aplicado** (interface, README, canvas e imagens). A coluna "Proposta" é o termo em uso.
 
 Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no imperativo nos botões, sempre **gatinho** (nunca "gato"), sempre contar linhas/colunas a partir de 1.
 
@@ -64,7 +64,11 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 | Erro ao preparar nível | "Não deu para preparar este nível. Tente de novo." |
 | Dica de erro | "Tem algo errado aqui." |
 
-## Perguntas para você decidir
+## Nomes das cores do tabuleiro (simplificados)
+
+Menta · Amarelo · Coral · Roxo · Azul · Verde · Marrom · Rosa · Laranja · Cinza (antes: Aguapé, Ipê, Pitanga, Jabuticaba, Céu, Capim, Barro claro, Flor, Tangerina, Neblina). "Tangerina" fica reservado à cor de ação da interface.
+
+## Perguntas respondidas (todas aceitas como propostas)
 
 1. **Nível** como termo único (sem "fase")? Concordo em trocar também "Próxima fase" → "Próximo nível".
 2. **Tentativas** (🐾) ou **vidas**? Proposto: tentativas.
