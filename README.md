@@ -106,6 +106,8 @@ Para **pular os testes**: `[skip tests]` na mensagem do commit, label `skip-test
 
 Enquanto o Worker prepara um nível grande, aparece um esqueleto animado do tabuleiro com o gatinho de dica. Em níveis 10×10, o próximo já é preparado em segundo plano enquanto você joga o atual.
 
-**Pendente no aparelho:** CA03 (arrasto), CA09 (long task), CA17, CA21–CA25 (instalação, offline, safe areas, roteiro no iPhone).
+**Testes de interface** (`npm run test:e2e`, Playwright + Chrome, locais): toque, arrasto, dica, recomeçar, retomar, vitória, 10×10 sem rolagem, offline.
+
+**Pendente no iPhone de verdade:** instalação, modo avião, matar o app, safe areas e roteiro completo (CA21–CA25), e o tempo de geração (CA09).
 
 > A partida salva no navegador **não guarda a solução**: ela é recalculada das cores ao carregar. Como o jogo roda inteiro no aparelho, isso evita espiadas casuais, mas não é um segredo de verdade.

@@ -17,6 +17,7 @@ Jogo de lógica (um gatinho por linha, coluna e cor; sem se encostar), PWA em Ty
 npm install
 npm test            # Vitest (≈10 s)
 npm run typecheck
+npm run test:e2e    # Playwright (local; Chrome do sistema; roda o build)
 npm run build       # typecheck + build (gera o service worker)
 npm run dev         # http://localhost:5173/gatinhos/
 ```
