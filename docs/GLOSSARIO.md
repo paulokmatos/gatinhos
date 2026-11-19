@@ -43,6 +43,7 @@ Regras gerais: tratamento neutro e direto ("você"), frases curtas, verbos no im
 
 | Escolher como ser chamado | — | **Seu nome** (opcional, só neste aparelho) | login, conta, perfil | Círculo ao lado de Símbolos. |
 | Confirmar recomeço | — | **Recomeçar nível?** — "Recomeçar" / "Cancelar" | tem certeza?, OK | Não regera o tabuleiro. |
+| Começar de outro nível | — | **Ir para um nível** / **Começar nesse nível** (e `?nivel=N`) | pular, fast-forward | Fica na folha do seu nome. |
 
 ## Ajuda
 

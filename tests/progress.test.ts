@@ -173,3 +173,20 @@ describe('nome do jogador', () => {
     expect(loadProgress(kv).name).toBe('');
   });
 });
+
+describe('começar de um nível avançado', () => {
+  it('?nivel=N só aceita 1–999', async () => {
+    const { parseLevelParam } = await import('../src/core/progress');
+    expect(parseLevelParam('?nivel=26')).toBe(26);
+    expect(parseLevelParam('?x=1&nivel=7')).toBe(7);
+    for (const bad of ['', '?nivel=0', '?nivel=-3', '?nivel=abc', '?nivel=1000', '?nivel=2.5', '?nivel=']) expect(parseLevelParam(bad)).toBeNull();
+  });
+  it('pular para um nível muda o ponto de retomada (também para trás)', async () => {
+    const { jumpTo } = await import('../src/core/progress');
+    let p = recordCompletion(defaultProgress(), 1, 1000);
+    p = jumpTo(p, 26);
+    expect(p.maxLevel).toBe(26);
+    expect(p.completed).toBe(1);
+    expect(jumpTo(p, 1).maxLevel).toBe(1);
+  });
+});

@@ -66,6 +66,14 @@ O botão **✨** abre os poderes. Por enquanto existe o **Revelar gatinho**: mos
 - **Gatinho de brinde:** nas dificuldades altas (a partir do nível 21) o nível pode já começar com 1 gatinho revelado, marcado com contorno tracejado. A chance é 50% nos níveis 21–30, 60% nos 31–40 e cai 15 pontos a cada 10 níveis, chegando a 0 no nível 71 — um empurrãozinho que some conforme você evolui. O sorteio é fixo por nível (igual em qualquer aparelho).
 - **Salvo no seu aparelho:** o nível atual, a partida em andamento, o seu nome, níveis concluídos e melhores tempos ficam no `localStorage` do navegador. Cada aparelho tem o próprio progresso, sem conta nem servidor.
 
+## 🔄 Atualizações e começar de onde quiser
+
+- **O app se atualiza sozinho, sem aviso na tela.** Ele procura versão nova ao abrir, ao voltar para o app e de hora em hora. A versão nova é baixada em segundo plano e só passa a valer quando você sai do app (ou na próxima abertura) — nunca recarrega no meio de uma partida. Seu nome, progresso e partida em andamento ficam no aparelho e continuam valendo. A versão instalada aparece, discreta, no rodapé da folha do seu nome.
+- **Você não precisa começar do zero.** Duas formas de ir direto para um nível avançado (por exemplo, já nos 10×10):
+  - abra o jogo com `?nivel=26`, por exemplo `https://paulokmatos.github.io/gatinhos/?nivel=26` (os níveis 26–30 já são 10×10; do 31 em diante quase tudo é 10×10, e a partir do 41 é Expert);
+  - ou toque no círculo do seu nome → **Ir para um nível** → **Começar nesse nível**.
+  O app passa a retomar desse nível. Você pode voltar a qualquer nível da mesma forma.
+
 ## 💡 3 dicas para começar
 
 1. **Comece pelas cores pequenas.** Uma cor com poucas casas (ou numa linha/coluna só) tem pouquíssimos lugares possíveis para o gatinho.

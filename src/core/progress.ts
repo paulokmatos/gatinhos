@@ -69,3 +69,16 @@ export function setName(p: Progress, raw: string): Progress {
 export function skipLevel(p: Progress, level: number): Progress {
   return { ...p, maxLevel: Math.max(p.maxLevel, level + 1) };
 }
+
+/** Ir direto para um nível (ex.: começar já nos 10×10): o ponto de retomada passa a ser esse nível. */
+export function jumpTo(p: Progress, level: number): Progress {
+  return { ...p, maxLevel: Math.max(1, Math.floor(level)) };
+}
+
+/** Lê `?nivel=26` do endereço (1–999). Qualquer outra coisa é ignorada. */
+export function parseLevelParam(search: string): number | null {
+  const raw = new URLSearchParams(search).get('nivel');
+  if (raw === null || !/^\d{1,3}$/.test(raw)) return null;
+  const n = Number(raw);
+  return n >= 1 ? n : null;
+}

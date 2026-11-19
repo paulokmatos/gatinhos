@@ -4,9 +4,10 @@ import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
-import { loadProgress, MAX_NAME, recordCompletion, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
+import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
+import { setupUpdates } from './pwa';
 import { catCheer, catDot, catFace, catHint, catSad } from './cat';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -25,6 +26,8 @@ let winClosed = false;
 let lostClosed = false;
 let sheetKind: 'powers' | 'profile' | null = null;
 let confirming = false;
+/** degraus oferecidos em "Ir para um nível" (começa de onde quiser, ex.: já nos 10×10) */
+const JUMPS = [1, 6, 11, 16, 21, 26, 31, 41, 61];
 let breakIdx = -1;
 let progress: Progress = loadProgress(kv);
 
@@ -124,7 +127,9 @@ function render(): void {
     sheet.innerHTML = `<div class="panel" role="dialog" aria-modal="true" aria-label="Seu nome"><button id="closeSheet" class="close" aria-label="Fechar">${CLOSE_SVG}</button><h2>Como podemos te chamar?</h2>
       <label class="field"><span>Seu nome (opcional)</span><input id="nameInput" type="text" maxlength="${MAX_NAME}" autocomplete="nickname" autocapitalize="words" value="${progress.name.replace(/"/g, '&quot;')}" placeholder="Ex.: Paulo" /></label>
       <button id="saveName" class="cta">Salvar</button>
-      <p class="sheet-note">O nome fica só neste aparelho.</p></div>`;
+      <label class="field"><span>Ir para um nível</span><select id="jumpSel">${JUMPS.map((k) => { const sp = specForLevel(k); return `<option value="${k}" ${k === level ? 'selected' : ''}>Nível ${k} · ${sp.size}×${sp.size} · ${DIFFICULTY_LABEL[sp.difficulty]}</option>`; }).join('')}</select></label>
+      <button id="jumpBtn" class="ghost">Começar nesse nível</button>
+      <p class="sheet-note">O nome e o progresso ficam só neste aparelho. Versão ${__APP_VERSION__}.</p></div>`;
   } else sheet.hidden = true;
 
   const ov = $('overlay');
@@ -289,6 +294,13 @@ document.addEventListener('click', (e) => {
   else if (id === 'powersBtn') { sheetKind = 'powers'; render(); }
   else if (id === 'profileBtn') { sheetKind = 'profile'; render(); (document.getElementById('nameInput') as HTMLInputElement | null)?.focus(); }
   else if (id === 'closeSheet') { sheetKind = null; render(); }
+  else if (id === 'jumpBtn') {
+    const k = Number((document.getElementById('jumpSel') as HTMLSelectElement).value);
+    progress = jumpTo(progress, k);
+    saveProgress(kv, progress);
+    sheetKind = null;
+    void startLevel(k);
+  }
   else if (id === 'saveName') {
     progress = setName(progress, (document.getElementById('nameInput') as HTMLInputElement).value);
     saveProgress(kv, progress);
@@ -308,12 +320,23 @@ setInterval(() => {
   if (game && !game.won && !loading) $('sub').textContent = `${game.puzzle.difficulty ? DIFFICULTY_LABEL[game.puzzle.difficulty] : 'Fixa'} · ${game.puzzle.size}×${game.puzzle.size} · ${fmt(elapsedMs(game))}`;
 }, 1000);
 
-const saved = load(kv);
-if (saved) {
-  level = saved.level;
-  symbols = saved.symbols;
-  game = saved.game;
-  winClosed = false;
-  lostClosed = false;
-  render();
-} else void startLevel(progress.maxLevel);
+setupUpdates();
+
+// ?nivel=26 abre direto nesse nível (ex.: https://…/gatinhos/?nivel=26 para já cair nos 10×10)
+const wanted = parseLevelParam(location.search);
+if (wanted !== null) {
+  progress = jumpTo(progress, wanted);
+  saveProgress(kv, progress);
+  history.replaceState(null, '', location.pathname);
+  void startLevel(wanted);
+} else {
+  const saved = load(kv);
+  if (saved) {
+    level = saved.level;
+    symbols = saved.symbols;
+    game = saved.game;
+    winClosed = false;
+    lostClosed = false;
+    render();
+  } else void startLevel(progress.maxLevel);
+}
