@@ -1,6 +1,7 @@
 import { generatePuzzle } from './generator';
 import { humanSolve } from './human';
 import { hashInts } from './rng';
+import { TIERS } from './difficulty';
 import type { Difficulty, Puzzle } from './types';
 
 export const SIZE_RANGE: Record<Difficulty, [number, number]> = {
@@ -66,6 +67,13 @@ export function specForLevel(level: number): LevelSpec {
   return { level: k, difficulty: decade === 0 ? 'dificil' : 'expert', size: k % 5 === 0 ? 9 : 10, seed, givenChance };
 }
 
+/** Nível `level` no degrau `tier` da escala adaptativa (seed depende do nível e do degrau). */
+export function specForTier(level: number, tier: number): LevelSpec {
+  const { size, difficulty } = TIERS[tier];
+  const givenChance = tier < 5 ? 0 : Math.max(0, 0.6 - 0.1 * (tier - 5));
+  return { level, difficulty, size, seed: hashInts(0x6a7a, level, tier), givenChance };
+}
+
 /** Gatinho inicial: o da cor com mais casas (a menos informativa). */
 export function pickGiven(puzzle: Puzzle): number {
   const n = puzzle.size;
@@ -82,8 +90,8 @@ export function pickGiven(puzzle: Puzzle): number {
 export type LevelResult = { ok: true; puzzle: Puzzle; spec: LevelSpec } | { ok: false; error: string };
 
 /** Gera a fase K: solução única e classificada na dificuldade da faixa. */
-export function generateLevel(level: number, maxAttempts = 3000): LevelResult {
-  const spec = specForLevel(level);
+export function generateLevel(level: number, maxAttempts = 3000, tier?: number): LevelResult {
+  const spec = tier === undefined ? specForLevel(level) : specForTier(level, tier);
   const res = generatePuzzle(spec.size, spec.seed, {
     maxAttempts,
     accept: (p) => {

@@ -3,8 +3,9 @@ import { applyHint, attemptsLeft, canHint, canReveal, canRedo, canUndo, continue
 import { FIXED_LEVELS } from '../core/levels';
 import { prefetchLevel, requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
-import { DIFFICULTY_LABEL, specForLevel } from '../core/progression';
-import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
+import { DIFFICULTY_LABEL, specForLevel, specForTier } from '../core/progression';
+import { nextTier, tierOf } from '../core/difficulty';
+import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, recordResult, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { setupUpdates } from './pwa';
@@ -152,9 +153,19 @@ function render(): void {
   if (ended) { $('hint').hidden = true; $('tip').hidden = true; }
 }
 
+/** Degrau de dificuldade do nível k, a partir da nota do jogador e da onda. */
+const tierFor = (k: number) => nextTier(progress.rating, progress.recent, k, progress.lastPlayed, Date.now());
+
 function update(next: GameState): void {
+  const sized = tierOf(next.puzzle.size, next.puzzle.difficulty) >= 0; // nível fixo de reserva não entra na nota
+  const finished = (won: boolean) => ({ won, mistakes: next.mistakes, hintsUsed: next.hintsUsed, powersUsed: next.powersUsed, timeMs: elapsedMs(next), size: next.puzzle.size });
   if (next.won && game && !game.won) {
     progress = recordCompletion(progress, level, elapsedMs(next));
+    if (sized && !next.continued) progress = recordResult(progress, finished(true)); // quem já perdeu e continuou não conta de novo
+    saveProgress(kv, progress);
+    prefetchLevel(level + 1, tierFor(level + 1)); // com a nota já atualizada
+  } else if (game && isLost(next) && !isLost(game) && sized) {
+    progress = recordResult(progress, finished(false));
     saveProgress(kv, progress);
   }
 if (game && next.mistakes > game.mistakes) {
@@ -167,8 +178,8 @@ if (game && next.mistakes > game.mistakes) {
 }
 
 /** Esqueleto animado enquanto o Worker prepara o nível (níveis grandes podem levar alguns segundos). */
-function showLoading(k: number): void {
-  const spec = specForLevel(k);
+function showLoading(k: number, tier: number): void {
+  const spec = specForTier(k, tier);
   const n = spec.size;
   $('app').classList.add('loading');
   $('app').classList.remove('ended');
@@ -217,8 +228,9 @@ async function startLevel(k: number): Promise<void> {
   if (loading) return;
   loading = true;
   level = k;
-  showLoading(k);
-  const res = await requestLevel(k);
+  const tier = tierFor(k);
+  showLoading(k, tier);
+  const res = await requestLevel(k, tier);
   // erro tratado: a interface não trava e cai num nível fixo
   const puzzle: Puzzle = res.ok ? res.puzzle : FIXED_LEVELS[(k - 1) % FIXED_LEVELS.length];
   loading = false;
@@ -229,7 +241,7 @@ async function startLevel(k: number): Promise<void> {
   sheetKind = null;
   confirming = false;
   update(newGame(puzzle));
-  prefetchLevel(k + 1);
+  prefetchLevel(k + 1, tierFor(k + 1)); // palpite com a nota de agora; se mudar ao vencer, é refeito
 }
 
 // --- entrada: toque e arrasto ---
