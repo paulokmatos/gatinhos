@@ -1,11 +1,13 @@
 import './style.css';
-import { applyHint, canHint, conflicts, dragX, elapsedMs, newGame, pressHint, redo, restart, setAutoX, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, tap, undo, type GameState } from '../core/game';
+import { findErrors } from '../core/hint';
 import { FIXED_LEVELS } from '../core/levels';
 import { requestLevel } from '../core/levelClient';
-import { COLOR_HEX, COLOR_SYMBOLS } from '../core/messages';
+import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL } from '../core/progression';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
+import { catCheer, catFace, catHint } from './cat';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const kv: KV = {
@@ -17,51 +19,91 @@ let level = 1;
 let symbols = false;
 let game: GameState | null = null;
 let loading = false;
+let prevStates: string[] | null = null;
+let prevPuzzle: Puzzle | null = null;
+let winClosed = false;
 
 const fmt = (ms: number) => {
   const s = Math.floor(ms / 1000);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
 
+const X_SVG = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="display:block"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round"/></svg>';
+const SPARK_COLORS = ['#FFD23F', '#FFFFFF', '#FF8FB1', '#7FD4FF'];
+const SPARK_DIRS = [[0, -26], [19, -19], [26, 0], [19, 19], [0, 26], [-19, 19], [-26, 0], [-19, -19]];
+const SPARKLES = SPARK_DIRS.map((d, k) => `<span class="spk" style="--dx:${d[0]}px;--dy:${d[1]}px;background:${SPARK_COLORS[k % 4]};animation-delay:${60 + (k % 2) * 40}ms"></span>`).join('');
+const CONFETTI = Array.from({ length: 22 }, (_, q) => `<span class="confetti" style="left:${(q * 37) % 100}%;background:${COLOR_HEX[q % 8]};animation-delay:${(q * 173) % 2400}ms"></span>`).join('');
+
+const PAW = (on: boolean) => `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="${on ? '#26262B' : '#B8C2CC'}"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>`;
+const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#2F6B5E" stroke-width="2.8" stroke-linecap="round"/></svg>';
+
+const stateName = { empty: 'vazia', x: 'marcada com X', cat: 'gatinho' } as const;
+
 function render(): void {
   if (!game) return;
   const g = game;
   const n = g.puzzle.size;
+  const sameBoard = prevPuzzle === g.puzzle && prevStates !== null;
   const board = $('board');
   board.style.setProperty('--n', String(n));
-  const bad = conflicts(g);
-  const hl = new Set(g.hint && g.hint.level === 1 ? g.hint.data.areaCells : g.hint?.data.kind === 'error' ? g.hint.data.areaCells : []);
-  const targets = new Set(g.hint && g.hint.level >= 2 && g.hint.data.kind === 'deduction' ? [...g.hint.data.deduction!.cats, ...g.hint.data.deduction!.xs] : []);
-  const errCells = new Set(g.hint?.data.kind === 'error' ? g.hint.data.areaCells : []);
+  board.classList.toggle('dense', n >= 9);
+
+  const h = g.hint;
+  const area = new Set(h?.level === 1 && h.data.kind === 'deduction' ? h.data.areaCells : []);
+  const targets = new Set(h && h.level >= 2 && h.data.kind === 'deduction' ? [...h.data.deduction!.cats, ...h.data.deduction!.xs] : []);
+  const errCells = new Set(h?.data.kind === 'error' ? h.data.areaCells : []);
+
   board.innerHTML = g.cells
     .map((m, i) => {
       const r = Math.floor(i / n);
       const c = i % n;
       const reg = g.puzzle.regions[r][c];
-      const edge = (rr: number, cc: number) => (rr < 0 || cc < 0 || rr >= n || cc >= n || g.puzzle.regions[rr][cc] !== reg ? 2 : 0.5);
-      const border = `border-width:${edge(r - 1, c)}px ${edge(r, c + 1)}px ${edge(r + 1, c)}px ${edge(r, c - 1)}px;`;
-      const cls = ['cell', m.state === 'x' ? 'x' : '', bad.has(i) ? 'bad' : '', errCells.has(i) ? 'err' : hl.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
-      const content = m.state === 'cat' ? '🐱' : m.state === 'x' ? '✕' : '';
-      return `<div class="${cls}" role="gridcell" data-i="${i}" aria-label="linha ${r + 1}, coluna ${c + 1}" style="background-color:${COLOR_HEX[reg]};${border}">${symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : ''}${content}</div>`;
+      const fresh = sameBoard && prevStates![i] !== m.state;
+      const cls = ['cell', g.armed === i ? 'armed' : '', errCells.has(i) ? 'err' : area.has(i) || targets.has(i) ? 'hl' : ''].join(' ');
+      const sym = symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : '';
+      const x = m.state === 'x' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_SVG}</span></span>` : '';
+      const cat = m.state === 'cat' ? `<span class="layer"><span class="${fresh ? 'cat-in' : ''}" style="display:block;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${catFace(36)}</span></span>${fresh ? `<span class="ring"></span>${SPARKLES}` : ''}` : '';
+      return `<button class="${cls}" role="gridcell" data-i="${i}" aria-label="Linha ${r + 1}, coluna ${c + 1}: ${stateName[m.state]}" style="background:${COLOR_HEX[reg]}">${sym}${x}${cat}</button>`;
     })
     .join('');
-  $('title').textContent = `Fase ${level} · ${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n}`;
+  prevStates = g.cells.map((m) => m.state);
+  prevPuzzle = g.puzzle;
+
+  const found = new Set<number>();
+  g.cells.forEach((m, i) => m.state === 'cat' && found.add(g.puzzle.regions[Math.floor(i / n)][i % n]));
+  $('progress').innerHTML = Array.from({ length: n }, (_, k) => `<span class="dot ${found.has(k) ? 'on' : ''}" style="background:${COLOR_HEX[k]}" title="${COLOR_NAMES[k]}: ${found.has(k) ? 'achado' : 'falta'}">${found.has(k) ? catFace(16) : ''}</span>`).join('');
+  $('found').textContent = `${found.size} de ${n} gatinhos`;
+  const missing = Array.from({ length: n }, (_, k) => k).filter((k) => !found.has(k)).map((k) => COLOR_NAMES[k]);
+  $('missing').textContent = missing.length ? `Faltam: ${missing.join(', ')}` : 'Todos achados!';
+  const left = attemptsLeft(g);
+  $('tries').innerHTML = Array.from({ length: MAX_ATTEMPTS }, (_, k) => PAW(k < left)).join('');
+  $('tries').setAttribute('aria-label', `${left} de ${MAX_ATTEMPTS} tentativas restantes`);
+  $('warn').hidden = findErrors(g.puzzle, g.cells).length === 0 || g.won;
+
+  $('title').textContent = `Nível ${level}`;
+  $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
   ($('undo') as HTMLButtonElement).disabled = g.history.length === 0 || g.won;
   ($('redo') as HTMLButtonElement).disabled = g.redo.length === 0 || g.won;
-  ($('hintBtn') as HTMLButtonElement).disabled = !canHint(g);
-  $('autox').setAttribute('aria-pressed', String(g.autoX));
+  const hintBtn = $('hintBtn') as HTMLButtonElement;
+  hintBtn.disabled = !g.won && !canHint(g);
+  hintBtn.dataset.mode = g.won ? 'next' : 'hint';
+  hintBtn.lastChild!.textContent = g.won ? ' Próxima fase' : ' Dica';
   $('symbols').setAttribute('aria-pressed', String(symbols));
+
   const hint = $('hint');
-  if (g.hint && !g.won) {
+  if (h && !g.won) {
     hint.hidden = false;
-    const h = g.hint;
     const text = h.level === 1 ? h.data.areaText : h.data.message;
-    hint.innerHTML = `<span>${text}</span>${h.level === 3 && h.data.apply ? '<button id="apply" style="flex:none;padding:0 14px">Aplicar</button>' : ''}`;
+    hint.innerHTML = `${catHint(60)}<div class="bubble"><span>${text}</span>${h.level === 3 && h.data.apply ? '<button id="apply" class="apply">Aplicar</button>' : ''}</div>`;
   } else hint.hidden = true;
+
   const ov = $('overlay');
-  if (g.won) {
+  if (g.won && !winClosed) {
     ov.hidden = false;
-    ov.innerHTML = `<div class="card"><h2>🎉 Fase concluída!</h2><div>Tempo: ${fmt(elapsedMs(g))}</div><div>Dicas usadas: ${g.hintsUsed}</div><button id="next">Próxima fase</button></div>`;
+    ov.innerHTML = `${CONFETTI}<div class="card" role="dialog" aria-modal="true" aria-label="Fase concluída"><button id="closeWin" class="close" aria-label="Fechar">${CLOSE_SVG}</button><span class="bob">${catCheer(124)}</span><h2>Você achou todos!</h2><p>Nível ${level} concluído em ${fmt(elapsedMs(g))}</p><p>Dicas usadas: ${g.hintsUsed} · Tentativas restantes: ${attemptsLeft(g)}</p><button id="next" class="next">Próxima fase</button></div>`;
+  } else if (isLost(g)) {
+    ov.hidden = false;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-label="Tentativas esgotadas"><span class="bob">${catFace(96)}</span><h2>Acabaram as tentativas</h2><p>Você usou as ${MAX_ATTEMPTS} tentativas deste quadro.</p><button id="again" class="big">Reiniciar o quadro</button><button id="keep" class="ghost">Continuar mesmo assim</button></div>`;
   } else ov.hidden = true;
 }
 
@@ -75,20 +117,20 @@ async function startLevel(k: number): Promise<void> {
   if (loading) return;
   loading = true;
   level = k;
-  $('title').textContent = `Gerando fase ${k}…`;
+  $('title').textContent = `Gerando nível ${k}…`;
   const res = await requestLevel(k);
-  let puzzle: Puzzle;
-  if (res.ok) puzzle = res.puzzle;
-  else puzzle = FIXED_LEVELS[(k - 1) % FIXED_LEVELS.length]; // erro tratado: a interface não trava
+  // erro tratado: a interface não trava e cai numa fase fixa
+  const puzzle: Puzzle = res.ok ? res.puzzle : FIXED_LEVELS[(k - 1) % FIXED_LEVELS.length];
   loading = false;
-  update(newGame(puzzle, { autoX: game?.autoX ?? true }));
+  prevStates = null;
+  winClosed = false;
+  update(newGame(puzzle));
 }
 
 // --- entrada: toque e arrasto ---
 let down: { start: number; path: number[]; dragging: boolean } | null = null;
 const cellAt = (x: number, y: number): number | null => {
-  const el = document.elementFromPoint(x, y) as HTMLElement | null;
-  const i = el?.closest<HTMLElement>('.cell')?.dataset.i;
+  const i = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest<HTMLElement>('.cell')?.dataset.i;
   return i === undefined ? null : Number(i);
 };
 const board = $('board');
@@ -111,26 +153,35 @@ window.addEventListener('pointerup', () => {
   update(d.dragging ? dragX(game, d.path) : tap(game, d.start));
 });
 window.addEventListener('pointercancel', () => (down = null));
+// teclado: Enter/Espaço num botão da casa gera click sem ponteiro (detail === 0)
+board.addEventListener('click', (e) => {
+  const i = (e.target as HTMLElement).closest<HTMLElement>('.cell')?.dataset.i;
+  if (e.detail === 0 && i !== undefined && game) update(tap(game, Number(i)));
+});
 
 document.addEventListener('click', (e) => {
-  const id = (e.target as HTMLElement).id;
-  if (!game) return;
+  const id = (e.target as HTMLElement).closest('button')?.id;
+  if (!game || !id) return;
   if (id === 'undo') update(undo(game));
   else if (id === 'redo') update(redo(game));
-  else if (id === 'restart') update(restart(game));
-  else if (id === 'hintBtn') update(pressHint(game));
+  else if (id === 'restart' || id === 'again') { winClosed = false; update(restart(game)); }
+  else if (id === 'keep') update(continueAfterLoss(game));
+  else if (id === 'closeWin') { winClosed = true; render(); }
+  else if (id === 'hintBtn') { if (game.won) void startLevel(level + 1); else update(pressHint(game)); }
   else if (id === 'apply') update(applyHint(game));
-  else if (id === 'autox') update(setAutoX(game, !game.autoX));
   else if (id === 'symbols') { symbols = !symbols; update(game); }
   else if (id === 'next') void startLevel(level + 1);
 });
 
-setInterval(() => { if (game && !game.won) $('timer').textContent = fmt(elapsedMs(game)); }, 500);
+setInterval(() => {
+  if (game && !game.won) $('sub').textContent = `${game.puzzle.difficulty ? DIFFICULTY_LABEL[game.puzzle.difficulty] : 'Fixa'} · ${game.puzzle.size}×${game.puzzle.size} · ${fmt(elapsedMs(game))}`;
+}, 1000);
 
 const saved = load(kv);
 if (saved) {
   level = saved.level;
   symbols = saved.symbols;
   game = saved.game;
+  winClosed = false;
   render();
 } else void startLevel(1);

@@ -1,6 +1,8 @@
 import { getHint, type Hint } from './hint';
 import type { Mark, Puzzle } from './types';
-import { conflictIndexes, touches } from './validator';
+import { conflictIndexes } from './validator';
+
+export const MAX_ATTEMPTS = 3;
 
 export interface Change {
   index: number;
@@ -13,8 +15,13 @@ export interface GameState {
   cells: Mark[];
   history: Change[][];
   redo: Change[][];
-  autoX: boolean;
   hintsUsed: number;
+  /** erros do jogador (X em casa de gatinho); ao chegar em MAX_ATTEMPTS a fase é perdida */
+  mistakes: number;
+  /** casa que recebeu o toque anterior: um 2º toque seguido nela é uma tentativa */
+  armed: number | null;
+  /** o jogador escolheu continuar depois de perder */
+  continued: boolean;
   startedAt: number;
   finishedAt: number | null;
   won: boolean;
@@ -23,16 +30,22 @@ export interface GameState {
   hint: { level: 1 | 2 | 3; data: Hint } | null;
 }
 
+export const isLost = (g: GameState) => !g.won && !g.continued && g.mistakes >= MAX_ATTEMPTS;
+const locked = (g: GameState) => g.won || isLost(g);
+export const attemptsLeft = (g: GameState) => Math.max(0, MAX_ATTEMPTS - g.mistakes);
+
 const EMPTY: Mark = { state: 'empty' };
 
-export function newGame(puzzle: Puzzle, opts: { autoX?: boolean; now?: number } = {}): GameState {
+export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState {
   return {
     puzzle,
     cells: Array.from({ length: puzzle.size * puzzle.size }, () => ({ ...EMPTY })),
     history: [],
     redo: [],
-    autoX: opts.autoX ?? true,
     hintsUsed: 0,
+    mistakes: 0,
+    armed: null,
+    continued: false,
     startedAt: opts.now ?? Date.now(),
     finishedAt: null,
     won: false,
@@ -43,26 +56,13 @@ export function newGame(puzzle: Puzzle, opts: { autoX?: boolean; now?: number } 
 
 const pos = (g: GameState, i: number) => ({ r: Math.floor(i / g.puzzle.size), c: i % g.puzzle.size });
 
-/** Casas riscadas por um gato em `i`. */
-function shadowOf(g: GameState, i: number): number[] {
-  const n = g.puzzle.size;
-  const p = pos(g, i);
-  const out: number[] = [];
-  for (let j = 0; j < n * n; j++) {
-    if (j === i) continue;
-    const q = pos(g, j);
-    if (q.r === p.r || q.c === p.c || g.puzzle.regions[q.r][q.c] === g.puzzle.regions[p.r][p.c] || touches(p, q)) out.push(j);
-  }
-  return out;
-}
-
 /** Aplica um conjunto de mudanças como UMA entrada de histórico. */
 function commit(g: GameState, changes: Change[], last: number | null): GameState {
-  const real = changes.filter((c) => c.before.state !== c.after.state || !!c.before.auto !== !!c.after.auto);
+  const real = changes.filter((c) => c.before.state !== c.after.state);
   if (!real.length) return g;
   const cells = g.cells.slice();
   for (const c of real) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null });
+  return finalize({ ...g, cells, history: [...g.history, real], redo: [], lastMove: last, hint: null, armed: null });
 }
 
 function finalize(g: GameState, now = Date.now()): GameState {
@@ -76,33 +76,32 @@ export function conflicts(g: GameState): Set<number> {
   return conflictIndexes(g.puzzle, g.cells);
 }
 
-/** Toque: vazio → X → gato → vazio. */
+/**
+ * Dois toques seguidos na mesma casa = uma tentativa de achar o gatinho. O que decide acerto ou erro é
+ * só haver (ou não) um gatinho ali; ter ou não um X na casa não importa.
+ *  - 1º toque: casa vazia vira X (rascunho do jogador, nunca automático); casa já com X só fica "armada".
+ *  - 2º toque seguido: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
+ * Um gatinho revelado não some ao tocar de novo.
+ */
 export function tap(g: GameState, i: number): GameState {
-  if (g.won) return g;
+  if (locked(g)) return g;
   const before = g.cells[i];
-  const changes: Change[] = [];
-  const set = (index: number, after: Mark) => changes.push({ index, before: g.cells[index], after });
-  if (before.state === 'empty') set(i, { state: 'x' });
-  else if (before.state === 'x') {
-    set(i, { state: 'cat' });
-    if (g.autoX) for (const j of shadowOf(g, i)) if (g.cells[j].state === 'empty') set(j, { state: 'x', auto: true });
-  } else {
-    set(i, { state: 'empty' });
-    if (g.autoX) {
-      // Remove só os X automáticos que ficaram sem nenhum gato que os justifique.
-      const remaining = g.cells.map((m, j) => (m.state === 'cat' && j !== i ? j : -1)).filter((j) => j >= 0);
-      const justified = new Set(remaining.flatMap((j) => shadowOf(g, j)));
-      g.cells.forEach((m, j) => {
-        if (m.state === 'x' && m.auto && !justified.has(j)) set(j, { ...EMPTY });
-      });
-    }
+  if (before.state === 'cat') return g.armed === null ? g : { ...g, armed: null };
+  const n = g.puzzle.size;
+  const isCatCell = g.puzzle.solution[Math.floor(i / n)] === i % n;
+  if (g.armed === i) {
+    const after: Mark = isCatCell ? { state: 'cat' } : { ...EMPTY };
+    const next = commit(g, before.state === after.state ? [] : [{ index: i, before, after }], i);
+    const base = next === g ? { ...g, lastMove: i, hint: null } : next;
+    return { ...base, armed: null, mistakes: isCatCell ? g.mistakes : g.mistakes + 1 };
   }
-  return commit(g, changes, i);
+  if (before.state === 'empty') return { ...commit(g, [{ index: i, before, after: { state: 'x' } }], i), armed: i };
+  return { ...g, armed: i, hint: null };
 }
 
 /** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatos (nem X). */
 export function dragX(g: GameState, path: number[]): GameState {
-  if (g.won) return g;
+  if (locked(g)) return g;
   const seen = new Set<number>();
   const changes: Change[] = [];
   for (const i of path) {
@@ -115,30 +114,30 @@ export function dragX(g: GameState, path: number[]): GameState {
 
 export function undo(g: GameState): GameState {
   const entry = g.history[g.history.length - 1];
-  if (!entry || g.won) return g;
+  if (!entry || locked(g)) return g;
   const cells = g.cells.slice();
   for (const c of entry) cells[c.index] = { ...c.before };
-  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null };
+  return { ...g, cells, history: g.history.slice(0, -1), redo: [...g.redo, entry], hint: null, lastMove: null, armed: null };
 }
 
 export function redo(g: GameState): GameState {
   const entry = g.redo[g.redo.length - 1];
-  if (!entry || g.won) return g;
+  if (!entry || locked(g)) return g;
   const cells = g.cells.slice();
   for (const c of entry) cells[c.index] = { ...c.after };
-  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null });
+  return finalize({ ...g, cells, redo: g.redo.slice(0, -1), history: [...g.history, entry], hint: null, armed: null });
+}
+
+export function continueAfterLoss(g: GameState): GameState {
+  return isLost(g) ? { ...g, continued: true } : g;
 }
 
 export function restart(g: GameState, now = Date.now()): GameState {
-  return newGame(g.puzzle, { autoX: g.autoX, now });
-}
-
-export function setAutoX(g: GameState, on: boolean): GameState {
-  return { ...g, autoX: on };
+  return newGame(g.puzzle, { now });
 }
 
 export function canHint(g: GameState): boolean {
-  return !g.won;
+  return !locked(g);
 }
 
 /** Toque no botão de dica: 1 = área, 2 = frase, 3 = botão Aplicar. Não conta em hintsUsed. */
@@ -155,7 +154,7 @@ export function pressHint(g: GameState): GameState {
 /** Aplicar (só no nível 3): marca o passo numa única entrada de histórico; hintsUsed +1. */
 export function applyHint(g: GameState): GameState {
   const h = g.hint;
-  if (!h || h.level !== 3 || !h.data.apply || g.won) return g;
+  if (!h || h.level !== 3 || !h.data.apply || locked(g)) return g;
   const changes: Change[] = [];
   for (const i of h.data.apply.xs) if (g.cells[i].state !== 'x') changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
   for (const i of h.data.apply.cats) if (g.cells[i].state !== 'cat') changes.push({ index: i, before: g.cells[i], after: { state: 'cat' } });

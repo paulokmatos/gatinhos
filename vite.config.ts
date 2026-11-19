@@ -11,7 +11,17 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       // inclui o Worker do gerador no cache offline
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'] },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // fontes do Google (Baloo 2 / Nunito) ficam em cache para o modo offline
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'fonts', cacheableResponse: { statuses: [0, 200] } },
+          },
+        ],
+      },
       manifest,
     }),
   ],

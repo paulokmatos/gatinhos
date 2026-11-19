@@ -19,7 +19,7 @@ export interface Hint {
 export const chebyshev = (n: number, a: number, b: number) =>
   Math.max(Math.abs(Math.floor(a / n) - Math.floor(b / n)), Math.abs((a % n) - (b % n)));
 
-/** Casas com erro: gato fora da solução ou X em casa de gato da solução. */
+/** Casas com erro: gato fora da solução ou X em casa de gato da solução (o X é rascunho e pode estar errado). */
 export function findErrors(puzzle: Puzzle, cells: Mark[]): number[] {
   const n = puzzle.size;
   const out: number[] = [];

@@ -31,15 +31,14 @@ describe('CA22 service worker (parte automática)', () => {
 describe('CA23 persistência', () => {
   it('restaura cells, history, hintsUsed, startedAt, ajustes; desfazer continua funcionando', () => {
     const kv = memory();
-    let g = newGame(FIXED_LEVELS[1], { autoX: false, now: 12345 });
-    g = tap(tap(g, 3), 3);
+    let g = newGame(FIXED_LEVELS[1], { now: 12345 });
+    g = tap(g, 3);
     g = tap(g, 10);
     g = { ...g, hintsUsed: 2 };
     save(kv, 7, g, true);
     const back = load(kv)!;
     expect(back.level).toBe(7);
     expect(back.symbols).toBe(true);
-    expect(back.game.autoX).toBe(false);
     expect(back.game.cells).toEqual(g.cells);
     expect(back.game.history).toEqual(g.history);
     expect(back.game.hintsUsed).toBe(2);

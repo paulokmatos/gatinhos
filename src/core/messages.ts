@@ -1,7 +1,7 @@
 import type { Deduction } from './human';
 
-export const COLOR_NAMES = ['Vermelho', 'Laranja', 'Amarelo', 'Verde', 'Ciano', 'Azul', 'Roxo', 'Rosa', 'Marrom', 'Cinza'];
-export const COLOR_HEX = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#a16207', '#9ca3af'];
+export const COLOR_NAMES = ['Aguapé', 'Ipê', 'Pitanga', 'Jabuticaba', 'Céu', 'Capim', 'Barro claro', 'Flor', 'Tangerina', 'Neblina'];
+export const COLOR_HEX = ['#8FD3C1', '#F4C542', '#F28C7A', '#9B7BD1', '#8EC5F0', '#A9D86E', '#D9A273', '#F2A7C8', '#F7A955', '#B8C2CC'];
 export const COLOR_SYMBOLS = ['●', '▲', '■', '◆', '★', '✚', '⬟', '♥', '☾', '✿'];
 
 const color = (i: number) => COLOR_NAMES[i];

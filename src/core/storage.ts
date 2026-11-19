@@ -2,7 +2,6 @@ import { newGame, type GameState } from './game';
 import type { Mark, Puzzle } from './types';
 
 export interface Settings {
-  autoX: boolean;
   symbols: boolean;
 }
 
@@ -14,6 +13,8 @@ export interface Saved {
   history: GameState['history'];
   redo: GameState['redo'];
   hintsUsed: number;
+  mistakes?: number;
+  continued?: boolean;
   startedAt: number;
   finishedAt: number | null;
   won: boolean;
@@ -21,7 +22,7 @@ export interface Saved {
 }
 
 export const STORAGE_KEY = 'gatinhos:v1';
-export const DEFAULT_SETTINGS: Settings = { autoX: true, symbols: false };
+export const DEFAULT_SETTINGS: Settings = { symbols: false };
 
 export interface KV {
   getItem(k: string): string | null;
@@ -37,10 +38,12 @@ export function serialize(level: number, g: GameState, symbols: boolean): Saved 
     history: g.history,
     redo: g.redo,
     hintsUsed: g.hintsUsed,
+    mistakes: g.mistakes,
+    continued: g.continued,
     startedAt: g.startedAt,
     finishedAt: g.finishedAt,
     won: g.won,
-    settings: { autoX: g.autoX, symbols },
+    settings: { symbols },
   };
 }
 
@@ -92,11 +95,13 @@ export function load(kv: KV): Loaded | null {
     if (!isChanges(s.history, total) || !isChanges(s.redo, total)) return null;
     if (!Number.isFinite(s.startedAt) || !Number.isInteger(s.hintsUsed) || s.hintsUsed < 0) return null;
     const game: GameState = {
-      ...newGame(s.puzzle, { autoX: !!s.settings?.autoX, now: s.startedAt }),
+      ...newGame(s.puzzle, { now: s.startedAt }),
       cells: s.cells,
       history: s.history,
       redo: s.redo,
       hintsUsed: s.hintsUsed,
+      mistakes: Number.isInteger(s.mistakes) && s.mistakes! >= 0 ? s.mistakes! : 0,
+      continued: !!s.continued,
       finishedAt: typeof s.finishedAt === 'number' ? s.finishedAt : null,
       won: !!s.won,
     };

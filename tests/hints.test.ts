@@ -10,13 +10,15 @@ import type { Mark, Puzzle } from '../src/core/types';
 
 const P = FIXED_LEVELS[0]; // 5×5
 const N = P.size;
-const put = (g: GameState, i: number, state: 'x' | 'cat') => tap(state === 'x' ? g : tap(g, i), i);
+/** Põe um gato direto (o toque só revela gatinhos em casas certas; para testar erros forço o estado). */
+const put = (g: GameState, i: number, state: 'x' | 'cat'): GameState =>
+  state === 'cat' ? { ...g, cells: g.cells.map((m, j) => (j === i ? { state: 'cat' as const } : m)), lastMove: i } : tap(g, i);
 const solCell = (r: number) => r * N + P.solution[r];
 const wrongCell = (r: number) => r * N + ((P.solution[r] + 2) % N);
 
 describe('CA13/CA14 erros', () => {
   it('gato fora da solução: destaca com "tem algo errado aqui", sem solver', () => {
-    const g = put(newGame(P, { autoX: false }), wrongCell(0), 'cat');
+    const g = put(newGame(P, {}), wrongCell(0), 'cat');
     const h = getHint(P, g.cells, g.lastMove)!;
     expect(h.kind).toBe('error');
     expect(h.areaCells).toEqual([wrongCell(0)]);
@@ -24,14 +26,14 @@ describe('CA13/CA14 erros', () => {
     expect(h.deduction).toBeUndefined();
   });
   it('X em casa de gato da solução (manual ou auto) → mesmo comportamento', () => {
-    const g = put(newGame(P, { autoX: false }), solCell(2), 'x');
+    const g = put(newGame(P, {}), solCell(2), 'x');
     expect(findErrors(P, g.cells)).toEqual([solCell(2)]);
     expect(getHint(P, g.cells, g.lastMove)!.message).toBe(ERROR_MESSAGE);
-    const cells: Mark[] = g.cells.map((m, i) => (i === solCell(3) ? { state: 'x', auto: true } : m));
+    const cells: Mark[] = g.cells.map((m, i) => (i === solCell(3) ? { state: 'x' } : m));
     expect(findErrors(P, cells)).toContain(solCell(3));
   });
   it('vários erros: aponta só um, o mais perto da última jogada', () => {
-    let g = newGame(P, { autoX: false });
+    let g = newGame(P, {});
     g = put(g, wrongCell(0), 'cat');
     g = put(g, wrongCell(4), 'cat'); // última jogada
     const h = getHint(P, g.cells, g.lastMove)!;
@@ -44,7 +46,7 @@ describe('CA15/CA16 passo mais fácil, inédito e desempate', () => {
     const r = generateLevel(1);
     if (!r.ok) throw new Error(r.error);
     const p = r.puzzle;
-    let g = newGame(p, { autoX: false });
+    let g = newGame(p, {});
     for (let i = 0; i < 40 && !g.won; i++) {
       const h = getHint(p, g.cells, g.lastMove);
       expect(h).not.toBeNull();
@@ -85,7 +87,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
   const start = () => {
     const r = generateLevel(1);
     if (!r.ok) throw new Error(r.error);
-    return newGame(r.puzzle, { autoX: false });
+    return newGame(r.puzzle, {});
   };
   it('3 toques: área → frase → Aplicar; toques 1 e 2 não contam', () => {
     let g = start();
@@ -113,8 +115,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
     expect(g.history.length).toBe(before + 1);
     for (const x of target.xs) expect(g.cells[x]).toEqual({ state: 'x' });
     for (const c of target.cats) expect(g.cells[c].state).toBe('cat');
-    expect(g.cells.some((m) => m.auto)).toBe(false);
-    g = undo(g);
+        g = undo(g);
     expect(g.cells.every((m) => m.state === 'empty')).toBe(true);
   });
   it('Aplicar só funciona no 3º toque', () => {
@@ -124,7 +125,7 @@ describe('CA17/CA18/CA20 dica em 3 níveis, aplicar e contagem', () => {
   it('sempre há dedução em estados sem erros; resolvido desativa o botão', () => {
     const r = generateLevel(1);
     if (!r.ok) throw new Error(r.error);
-    let g = newGame(r.puzzle, { autoX: true });
+    let g = newGame(r.puzzle, {});
     for (let i = 0; i < 60 && !g.won; i++) {
       g = pressHint(pressHint(pressHint(g)));
       expect(g.hint).not.toBeNull();
@@ -171,6 +172,6 @@ describe('CA19 mensagens', () => {
   });
   it('exemplo T5 em texto', () => {
     const msg = hintMessage({ tech: 5, cats: [], xs: [0], lineKind: 'col', lines: [4, 5], regions: [3, 7] }, 10);
-    expect(msg).toBe('As cores Verde e Rosa só cabem nas colunas 5 e 6 — risque as outras casas dessas colunas.');
+    expect(msg).toBe('As cores Jabuticaba e Flor só cabem nas colunas 5 e 6 — risque as outras casas dessas colunas.');
   });
 });
