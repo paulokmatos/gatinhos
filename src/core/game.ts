@@ -1,6 +1,6 @@
 import { getHint, type Hint } from './hint';
 import type { Mark, Puzzle } from './types';
-import { conflictIndexes, touches } from './validator';
+import { conflictIndexes } from './validator';
 
 export interface Change {
   index: number;
@@ -13,7 +13,6 @@ export interface GameState {
   cells: Mark[];
   history: Change[][];
   redo: Change[][];
-  autoX: boolean;
   hintsUsed: number;
   startedAt: number;
   finishedAt: number | null;
@@ -25,13 +24,12 @@ export interface GameState {
 
 const EMPTY: Mark = { state: 'empty' };
 
-export function newGame(puzzle: Puzzle, opts: { autoX?: boolean; now?: number } = {}): GameState {
+export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState {
   return {
     puzzle,
     cells: Array.from({ length: puzzle.size * puzzle.size }, () => ({ ...EMPTY })),
     history: [],
     redo: [],
-    autoX: opts.autoX ?? true,
     hintsUsed: 0,
     startedAt: opts.now ?? Date.now(),
     finishedAt: null,
@@ -43,22 +41,9 @@ export function newGame(puzzle: Puzzle, opts: { autoX?: boolean; now?: number } 
 
 const pos = (g: GameState, i: number) => ({ r: Math.floor(i / g.puzzle.size), c: i % g.puzzle.size });
 
-/** Casas riscadas por um gato em `i`. */
-function shadowOf(g: GameState, i: number): number[] {
-  const n = g.puzzle.size;
-  const p = pos(g, i);
-  const out: number[] = [];
-  for (let j = 0; j < n * n; j++) {
-    if (j === i) continue;
-    const q = pos(g, j);
-    if (q.r === p.r || q.c === p.c || g.puzzle.regions[q.r][q.c] === g.puzzle.regions[p.r][p.c] || touches(p, q)) out.push(j);
-  }
-  return out;
-}
-
 /** Aplica um conjunto de mudanças como UMA entrada de histórico. */
 function commit(g: GameState, changes: Change[], last: number | null): GameState {
-  const real = changes.filter((c) => c.before.state !== c.after.state || !!c.before.auto !== !!c.after.auto);
+  const real = changes.filter((c) => c.before.state !== c.after.state);
   if (!real.length) return g;
   const cells = g.cells.slice();
   for (const c of real) cells[c.index] = { ...c.after };
@@ -76,28 +61,21 @@ export function conflicts(g: GameState): Set<number> {
   return conflictIndexes(g.puzzle, g.cells);
 }
 
-/** Toque: vazio → X → gato → vazio. */
+/**
+ * Toque: vazio → X → gatinho. O X é só rascunho do jogador (pode estar errado) e nunca é posto sozinho.
+ * O gatinho só aparece numa casa que é dele; ao tocar de novo num gatinho nada acontece.
+ * Num X de casa sem gatinho, o toque limpa o X (o gatinho não aparece).
+ */
 export function tap(g: GameState, i: number): GameState {
   if (g.won) return g;
   const before = g.cells[i];
-  const changes: Change[] = [];
-  const set = (index: number, after: Mark) => changes.push({ index, before: g.cells[index], after });
-  if (before.state === 'empty') set(i, { state: 'x' });
-  else if (before.state === 'x') {
-    set(i, { state: 'cat' });
-    if (g.autoX) for (const j of shadowOf(g, i)) if (g.cells[j].state === 'empty') set(j, { state: 'x', auto: true });
-  } else {
-    set(i, { state: 'empty' });
-    if (g.autoX) {
-      // Remove só os X automáticos que ficaram sem nenhum gato que os justifique.
-      const remaining = g.cells.map((m, j) => (m.state === 'cat' && j !== i ? j : -1)).filter((j) => j >= 0);
-      const justified = new Set(remaining.flatMap((j) => shadowOf(g, j)));
-      g.cells.forEach((m, j) => {
-        if (m.state === 'x' && m.auto && !justified.has(j)) set(j, { ...EMPTY });
-      });
-    }
-  }
-  return commit(g, changes, i);
+  if (before.state === 'cat') return g;
+  const n = g.puzzle.size;
+  const isCatCell = g.puzzle.solution[Math.floor(i / n)] === i % n;
+  let after: Mark;
+  if (before.state === 'empty') after = { state: 'x' };
+  else after = isCatCell ? { state: 'cat' } : { ...EMPTY };
+  return commit(g, [{ index: i, before, after }], i);
 }
 
 /** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatos (nem X). */
@@ -130,11 +108,7 @@ export function redo(g: GameState): GameState {
 }
 
 export function restart(g: GameState, now = Date.now()): GameState {
-  return newGame(g.puzzle, { autoX: g.autoX, now });
-}
-
-export function setAutoX(g: GameState, on: boolean): GameState {
-  return { ...g, autoX: on };
+  return newGame(g.puzzle, { now });
 }
 
 export function canHint(g: GameState): boolean {

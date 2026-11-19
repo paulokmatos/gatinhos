@@ -13,6 +13,12 @@ npm test           # testes automatizados (Vitest)
 npm run build      # typecheck + build de produção
 ```
 
+## Regras de interação
+
+- Toque: vazio → X → gatinho. O **X é só rascunho do jogador** (pode estar errado) e **nunca é marcado automaticamente**.
+- O gatinho só aparece na casa que é dele; depois de revelado, tocar de novo não o remove (use Desfazer). Tocar num X de casa sem gatinho apenas limpa o X.
+- Acima do tabuleiro: progresso (cores com gatinho achado) e um aviso quando alguma marcação ✕ está errada.
+
 ## Estrutura
 
 - `src/core/` — lógica pura e testável: modelo, validador, gerador (seed + unicidade), solver de força bruta, solver humano T1–T7, dicas, estado de jogo (undo/redo/auto-X), persistência.

@@ -13,8 +13,6 @@ export type CellState = 'empty' | 'x' | 'cat';
 
 export interface Mark {
   state: CellState;
-  /** true quando o X foi posto pelo auto-X */
-  auto?: boolean;
 }
 
 export interface Pos {
