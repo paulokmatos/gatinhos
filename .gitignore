@@ -3,5 +3,6 @@ dist
 dev-dist
 *.log
 .idea
-.vscodetest-results/
+.vscode
+test-results/
 playwright-report/
