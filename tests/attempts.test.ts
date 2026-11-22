@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, isLost, MAX_ATTEMPTS, newGame, redo, restart, tap, undo } from '../src/core/game';
+import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pause, redo, restart, resume, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { load, save, type KV } from '../src/core/storage';
 
@@ -155,5 +155,39 @@ describe('✕ vermelho (palpite errado) e arrasto que desmarca', () => {
     expect(h.history).toHaveLength(g.history.length + 1); // 1 passo
     const u = undo(h);
     expect(u.cells.map((m) => m.state)).toEqual(before);
+  });
+});
+
+describe('tempo do nível só corre com o app aberto', () => {
+  it('pausa e volta: o tempo em segundo plano não conta', () => {
+    const g = newGame(P, { now: 0 });
+    const p = pause(g, 60_000);
+    expect(elapsedMs(p, 8 * 3_600_000)).toBe(60_000);
+    const r = resume(p, 8 * 3_600_000);
+    expect(r.pausedAt).toBeNull();
+    expect(elapsedMs(r, 8 * 3_600_000 + 5_000)).toBe(65_000);
+  });
+  it('pausar de novo não perde o instante da 1ª pausa; voltar sem pausa não muda nada', () => {
+    const g = pause(newGame(P, { now: 0 }), 1_000);
+    expect(pause(g, 9_000)).toBe(g);
+    const n = newGame(P);
+    expect(resume(n)).toBe(n);
+  });
+  it('app fechado em segundo plano: a pausa é salva e vale ao reabrir', () => {
+    const store = new Map<string, string>();
+    const kv: KV = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v) };
+    save(kv, 1, pause(newGame(P, { now: 0 }), 30_000), false);
+    const back = load(kv)!.game;
+    expect(back.pausedAt).toBe(30_000);
+    expect(elapsedMs(resume(back, 86_400_000), 86_400_000)).toBe(30_000);
+  });
+});
+
+describe('nível vencido não recomeça', () => {
+  it('recomeçar depois de vencer devolve o mesmo estado (não conta a vitória de novo)', () => {
+    let g = newGame(P);
+    for (let r = 0; r < P.size; r++) g = guess(g, right(r));
+    expect(g.won).toBe(true);
+    expect(restart(g)).toBe(g);
   });
 });

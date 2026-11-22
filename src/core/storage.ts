@@ -20,6 +20,7 @@ export interface Saved {
   continued?: boolean;
   startedAt: number;
   finishedAt: number | null;
+  pausedAt?: number | null;
   won: boolean;
   settings: Settings;
 }
@@ -52,6 +53,7 @@ export function serialize(level: number, g: GameState, symbols: boolean): Saved 
     continued: g.continued,
     startedAt: g.startedAt,
     finishedAt: g.finishedAt,
+    pausedAt: g.pausedAt,
     won: g.won,
     settings: { symbols },
   };
@@ -119,6 +121,7 @@ export function load(kv: KV): Loaded | null {
       powersUsed: Number.isInteger(s.powersUsed) && s.powersUsed! >= 0 ? s.powersUsed! : 0,
       continued: !!s.continued,
       finishedAt: typeof s.finishedAt === 'number' ? s.finishedAt : null,
+      pausedAt: Number.isFinite(s.pausedAt) ? s.pausedAt! : null,
       won: !!s.won,
     };
     return { level: s.level, game, symbols: !!s.settings?.symbols };

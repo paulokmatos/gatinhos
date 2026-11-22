@@ -29,7 +29,7 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 - **Duplo toque (2 toques rápidos na mesma casa) = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece, uma patinha grande é rasgada no centro da tela, a casa ganha um ✕ vermelho e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
 - **Arraste para marcar ou desmarcar:** começando numa casa vazia, as marcas ✕ aparecem nas casas por onde você passa; começando numa casa com ✕ seu, elas são tiradas. Tudo vale como um único Desfazer.
 - **Desfazer / Refazer** voltam e repetem só as suas marcas ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
-- **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo.
+- **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo. Depois de vencer, o ⟲ fica desligado.
 - **Seu nome** (o círculo ao lado dos símbolos) é opcional e fica só neste aparelho; aparece no parabéns ao vencer.
 - **Símbolos** (◇, canto superior direito) mostram um símbolo em cada cor, para ajudar quem tem dificuldade de distinguir tons.
 
@@ -53,7 +53,7 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 </p>
 
 - **Sem tentativas?** Um aviso oferece **Tentar novamente** (recomendado) ou **Continuar sem limite**. Se você fechar o aviso (✕), o tabuleiro fica congelado e a barra de baixo mostra só **Tentar novamente** e **Próximo nível**.
-- **Venceu?** Um aviso mostra seu tempo e as dicas usadas, com botão **Próximo nível** (e um ✕ para fechar e admirar o tabuleiro).
+- **Venceu?** Um aviso mostra seu tempo (só conta o tempo com o app aberto) e as dicas usadas, com botão **Próximo nível** (e um ✕ para fechar e admirar o tabuleiro).
 
 ### ✨ Poderes
 

@@ -26,4 +26,5 @@ npm run dev         # http://localhost:5173/gatinhos/
 
 - Branch + Pull Request; **merge só quando o dono pedir**. CI: typecheck+testes → build → deploy Pages (só `main`); testes puláveis com `[skip tests]`.
 - Mudou interface? Atualize canvas, README e os prints em `docs/` (veja `docs/REGRAS.md`, seção 5).
+- **Não escreva comentários em prosa no código.** O código tem de se ler sozinho: nomes claros, funções pequenas por tarefa. O porquê vai nos testes (nomes dos `it`), em `docs/REGRAS.md` ou na mensagem do commit.
 - Não esqueça: `src/core/` é lógica pura e testável; `src/ui/` é a interface.

@@ -1,5 +1,5 @@
 import './style.css';
-import { applyHint, attemptsLeft, canHint, canReveal, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pressHint, redo, restart, revealCat, tap, undo, type GameState } from '../core/game';
+import { applyHint, attemptsLeft, canHint, canReveal, canRedo, canUndo, continueAfterLoss, dragX, elapsedMs, isLost, MAX_ATTEMPTS, newGame, pause, pressHint, redo, restart, resume, revealCat, tap, undo, type GameState } from '../core/game';
 import { FIXED_LEVELS } from '../core/levels';
 import { prefetchLevel, requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
@@ -97,6 +97,7 @@ function render(): void {
   $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
   ($('undo') as HTMLButtonElement).disabled = !canUndo(g);
   ($('redo') as HTMLButtonElement).disabled = !canRedo(g);
+  ($('restart') as HTMLButtonElement).disabled = g.won;
   const hintBtn = $('hintBtn') as HTMLButtonElement;
   hintBtn.disabled = !g.won && !canHint(g);
   hintBtn.dataset.mode = g.won ? 'next' : 'hint';
@@ -245,7 +246,8 @@ async function startLevel(k: number): Promise<void> {
   lostClosed = false;
   sheetKind = null;
   confirming = false;
-  update(newGame(puzzle));
+  const fresh = newGame(puzzle);
+  update(document.hidden ? pause(fresh) : fresh);
   prefetchLevel(k + 1, tierFor(k + 1)); // palpite com a nota de agora; se mudar ao vencer, é refeito
 }
 
@@ -338,6 +340,10 @@ setInterval(() => {
   if (game && !game.won && !loading) $('sub').textContent = `${game.puzzle.difficulty ? DIFFICULTY_LABEL[game.puzzle.difficulty] : 'Fixa'} · ${game.puzzle.size}×${game.puzzle.size} · ${fmt(elapsedMs(game))}`;
 }, 1000);
 
+document.addEventListener('visibilitychange', () => {
+  if (game && !loading) update(document.hidden ? pause(game) : resume(game));
+});
+
 setupUpdates();
 
 // ?nivel=26 abre direto nesse nível (ex.: https://…/gatinhos/?nivel=26 para já cair nos 10×10)
@@ -352,7 +358,7 @@ if (wanted !== null) {
   if (saved) {
     level = saved.level;
     symbols = saved.symbols;
-    game = saved.game;
+    game = resume(saved.game);
     winClosed = false;
     lostClosed = false;
     render();
