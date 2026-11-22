@@ -1,3 +1,5 @@
+import { MAX_TIER, performance, tierOf, updateRating, type Result } from './difficulty';
+import { specForLevel } from './progression';
 import type { KV } from './storage';
 
 /** Progresso do jogador, guardado só neste aparelho (localStorage). */
@@ -11,6 +13,18 @@ export interface Progress {
   maxLevel: number;
   /** melhor tempo (ms) por nível */
   best: Record<string, number>;
+  /** nota do jogador na escala de dificuldade (TIERS), fracionária */
+  rating: number;
+  /** desempenho (0–1) dos últimos níveis, do mais antigo ao mais recente */
+  recent: number[];
+  /** última vez que jogou (ms desde 1970; 0 = nunca) */
+  lastPlayed: number;
+}
+
+/** Nota inicial/ao pular para um nível: o degrau que a curva antiga dava a esse nível. */
+export function ratingForLevel(level: number): number {
+  const sp = specForLevel(level);
+  return Math.max(0, tierOf(sp.size, sp.difficulty));
 }
 
 export const PROGRESS_KEY = 'gatinhos:progress:v1';
@@ -23,7 +37,7 @@ export function sanitizeName(raw: string): string {
   return String(raw ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME).trim();
 }
 
-export const defaultProgress = (): Progress => ({ version: 1, name: '', completed: 0, maxLevel: 1, best: {} });
+export const defaultProgress = (): Progress => ({ version: 1, name: '', completed: 0, maxLevel: 1, best: {}, rating: 0, recent: [], lastPlayed: 0 });
 
 const nonNeg = (x: unknown): x is number => Number.isInteger(x) && (x as number) >= 0;
 
@@ -35,7 +49,10 @@ export function loadProgress(kv: KV): Progress {
     if (p?.version !== 1 || !nonNeg(p.completed) || !Number.isInteger(p.maxLevel) || p.maxLevel < 1) return defaultProgress();
     const best: Record<string, number> = {};
     for (const [k, v] of Object.entries(p.best ?? {})) if (Number.isFinite(v) && v >= 0) best[k] = v;
-    return { version: 1, name: typeof p.name === 'string' ? sanitizeName(p.name) : '', completed: p.completed, maxLevel: p.maxLevel, best };
+    const rating = Number.isFinite(p.rating) ? Math.min(MAX_TIER, Math.max(0, p.rating)) : ratingForLevel(p.maxLevel); // progresso antigo: parte da curva antiga
+    const recent = Array.isArray(p.recent) ? p.recent.filter((x) => Number.isFinite(x) && x >= 0 && x <= 1).slice(-5) : [];
+    const lastPlayed = Number.isFinite(p.lastPlayed) && p.lastPlayed > 0 ? p.lastPlayed : 0;
+    return { version: 1, name: typeof p.name === 'string' ? sanitizeName(p.name) : '', completed: p.completed, maxLevel: p.maxLevel, best, rating, recent, lastPlayed };
   } catch {
     return defaultProgress();
   }
@@ -61,6 +78,12 @@ export function recordCompletion(p: Progress, level: number, timeMs: number): Pr
   };
 }
 
+/** Registra o desfecho de um nível (vitória ou derrota): atualiza a nota e o histórico recente. */
+export function recordResult(p: Progress, r: Result, now = Date.now()): Progress {
+  const perf = performance(r);
+  return { ...p, rating: updateRating(p.rating, perf), recent: [...p.recent, perf].slice(-5), lastPlayed: now };
+}
+
 export function setName(p: Progress, raw: string): Progress {
   return { ...p, name: sanitizeName(raw) };
 }
@@ -72,7 +95,8 @@ export function skipLevel(p: Progress, level: number): Progress {
 
 /** Ir direto para um nível (ex.: começar já nos 10×10): o ponto de retomada passa a ser esse nível. */
 export function jumpTo(p: Progress, level: number): Progress {
-  return { ...p, maxLevel: Math.max(1, Math.floor(level)) };
+  const maxLevel = Math.max(1, Math.floor(level));
+  return { ...p, maxLevel, rating: ratingForLevel(maxLevel), recent: [] };
 }
 
 /** Lê `?nivel=26` do endereço (1–999). Qualquer outra coisa é ignorada. */
