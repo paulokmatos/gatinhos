@@ -120,7 +120,6 @@ export function generatePuzzle(size: number, seed: number, opts: GenerateOptions
     const solution = generateSolution(size, rnd);
     const regions = drawRegions(solution, rnd);
     if (!repairUniqueness(solution, regions, rnd, 60)) continue;
-    if (countSolutions(regions, 2) !== 1) continue;
     const puzzle: Puzzle = { size, regions, solution };
     if (opts.accept && !opts.accept(puzzle)) continue;
     return { ok: true, puzzle, attempts: attempt };
