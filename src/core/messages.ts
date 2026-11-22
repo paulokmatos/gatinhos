@@ -23,20 +23,24 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function areaMessage(d: Deduction, size = 0): string {
   const cell = (i: number) => ({ r: Math.floor(i / size) + 1, c: (i % size) + 1 });
   switch (d.tech) {
+    case 0: {
+      const { r, c } = cell(d.premise[0]);
+      return `O gatinho ${color(d.regions[0])} (linha ${r}, coluna ${c}) já descarta estas casas: elas estão na mesma linha, coluna ou cor, ou encostam nele.`;
+    }
     case 1:
       return `${cap(unitName(d.unit!))} só tem uma casa livre.`;
     case 2:
-      return `A ${colors(d.regions)} só tem casas na ${lineLoc(d.lineKind, d.lines)}.`;
+      return `A ${colors(d.regions)} só tem casas livres na ${lineLoc(d.lineKind, d.lines)}.`;
     case 3:
-      return `Na ${lineLoc(d.lineKind, d.lines)} só há casas da ${colors(d.regions)}.`;
+      return `Na ${lineLoc(d.lineKind, d.lines)}, as únicas casas livres são da ${colors(d.regions)}.`;
     case 4: {
       const { r, c } = cell(d.xs[0]);
       return `Imagine um gatinho na linha ${r}, coluna ${c}: ${unitName(d.unit!)} ficaria sem nenhuma casa livre.`;
     }
     case 5:
-      return `As ${colors(d.regions)} só têm casas nas ${lineLoc(d.lineKind, d.lines)}.`;
+      return `As ${colors(d.regions)} só têm casas livres nas ${lineLoc(d.lineKind, d.lines)}.`;
     case 6:
-      return `As ${lineLoc(d.lineKind, d.lines)} só têm casas das ${colors(d.regions)}.`;
+      return `Nas ${lineLoc(d.lineKind, d.lines)}, as únicas casas livres são das ${colors(d.regions)}.`;
     case 7: {
       const { r, c } = cell(d.xs[0]);
       return `Imagine um gatinho na linha ${r}, coluna ${c}: ao riscar o que ele elimina, o tabuleiro trava.`;
@@ -48,10 +52,12 @@ export function areaMessage(d: Deduction, size = 0): string {
 export function hintMessage(d: Deduction, size: number): string {
   const premise = areaMessage(d, size);
   switch (d.tech) {
+    case 0:
+      return `${premise} Marque ✕ nelas.`;
     case 1: {
       const r = Math.floor(d.cats[0] / size) + 1;
       const c = (d.cats[0] % size) + 1;
-      return `${premise} Ela fica na linha ${r}, coluna ${c}: coloque um gatinho lá.`;
+      return `${premise} Ela fica na linha ${r}, coluna ${c} (cor ${color(d.regions[0])}): coloque um gatinho lá.`;
     }
     case 2:
       return `${premise} Então o gatinho da ${colors(d.regions)} está nela, e as outras casas dessa ${lineWord(d.lineKind, 1)} (que não são dessa cor) não podem ter gatinho: marque ✕ nelas.`;

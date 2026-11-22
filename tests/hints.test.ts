@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { applyHint, canHint, newGame, pressHint, tap, undo, type GameState } from '../src/core/game';
-import { chebyshev, ERROR_MESSAGE, findErrors, getHint } from '../src/core/hint';
+import { chebyshev, findErrors, getDeduction, getHint } from '../src/core/hint';
 import { generateLevel } from '../src/core/progression';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { generatePuzzle } from '../src/core/generator';
-import { applyDeduction, isSolved, lowestDeductions, stateFromMarks, type Tech } from '../src/core/human';
+import { applyDeduction, hintDeductions, isSolved, lowestDeductions, stateFromMarks, visibleState, type Tech } from '../src/core/human';
 import { COLOR_NAMES, hintMessage } from '../src/core/messages';
 import type { Mark, Puzzle } from '../src/core/types';
+import { mulberry32 } from '../src/core/rng';
 
 const P = FIXED_LEVELS[0]; // 5×5
 const N = P.size;
@@ -19,16 +20,22 @@ const wrongCell = (r: number) => r * N + ((P.solution[r] + 2) % N);
 describe('CA13/CA14 erros', () => {
   it('gatinho fora do lugar: destaca com "tem algo errado aqui", sem solver', () => {
     const g = put(newGame(P, {}), wrongCell(0), 'cat');
-    const h = getHint(P, g.cells, g.lastMove)!;
+    const h = getHint(P, g.cells, g.lastMove);
     expect(h.kind).toBe('error');
     expect(h.areaCells).toEqual([wrongCell(0)]);
-    expect(h.message).toBe(ERROR_MESSAGE);
+    expect(h.message).toBe('Tem algo errado aqui.');
     expect(h.deduction).toBeUndefined();
   });
   it('marca ✕ em casa de gatinho → mesmo comportamento', () => {
     const g = put(newGame(P, {}), solCell(2), 'x');
     expect(findErrors(P, g.cells)).toEqual([solCell(2)]);
-    expect(getHint(P, g.cells, g.lastMove)!.message).toBe(ERROR_MESSAGE);
+    const h = getHint(P, g.cells, g.lastMove);
+    expect(h.areaText).toBe(`Algum ✕ seu está numa casa onde pode haver gatinho. Confira a coluna ${P.solution[2] + 1}.`);
+    expect(h.areaCells).toEqual([solCell(2)]);
+    expect(h.apply).toEqual({ cats: [], xs: [], clear: [solCell(2)] }); // nível 3: "Tirar este ✕"
+    let p = pressHint(pressHint(pressHint(g)));
+    p = applyHint(p);
+    expect(p.cells[solCell(2)].state).toBe('empty');
     const cells: Mark[] = g.cells.map((m, i) => (i === solCell(3) ? { state: 'x' } : m));
     expect(findErrors(P, cells)).toContain(solCell(3));
   });
@@ -48,11 +55,10 @@ describe('CA15/CA16 passo mais fácil, inédito e desempate', () => {
     const p = r.puzzle;
     let g = newGame(p, {});
     for (let i = 0; i < 40 && !g.won; i++) {
-      const h = getHint(p, g.cells, g.lastMove);
-      expect(h).not.toBeNull();
-      const d = h!.deduction!;
-      const s = stateFromMarks(p, g.cells);
-      expect(Math.min(...lowestDeductions(s).map((x) => x.tech))).toBe(d.tech);
+      const d = getHint(p, g.cells, g.lastMove).deduction!;
+      expect(d).toBeDefined();
+      const s = visibleState(p, g.cells);
+      expect(Math.min(...hintDeductions(s, true).map((x) => x.tech))).toBe(d.tech);
       for (const c of d.cats) expect(g.cells[c].state).toBe('empty');
       for (const x of d.xs) expect(g.cells[x].state).toBe('empty');
       // aplica o passo manualmente
@@ -69,13 +75,13 @@ describe('CA15/CA16 passo mais fácil, inédito e desempate', () => {
     const empty = Array.from({ length: p.size ** 2 }, () => ({ state: 'empty' as const }));
     const ds = lowestDeductions(stateFromMarks(p, empty));
     const targets = (d: (typeof ds)[number]) => [...d.cats, ...d.xs];
-    const a = getHint(p, empty, null)!.deduction!;
+    const a = getHint(p, empty, null).deduction!;
     // sem jogada anterior: vence a de menor linha/coluna
     const minFirst = Math.min(...ds.map((d) => Math.min(...targets(d))));
     expect(Math.min(...targets(a))).toBe(minFirst);
     // com jogada anterior: vence a mais perto
     const last = p.size ** 2 - 1;
-    const b = getHint(p, empty, last)!.deduction!;
+    const b = getHint(p, empty, last).deduction!;
     const dist = (d: (typeof ds)[number]) => Math.min(...targets(d).map((c) => chebyshev(p.size, last, c)));
     expect(dist(b)).toBe(Math.min(...ds.map(dist)));
     // determinismo
@@ -146,13 +152,13 @@ describe('dica explica o porquê (motivo → o que fazer)', () => {
     if (!r.ok) throw new Error(r.error);
     const p = r.puzzle;
     const empty = Array.from({ length: p.size ** 2 }, () => ({ state: 'empty' as const }));
-    const h = getHint(p, empty, null)!;
+    const h = getHint(p, empty, null);
     expect(h.areaCells.length).toBeGreaterThan(0); // casas da premissa
     expect(h.message.startsWith(h.areaText)).toBe(true);
     expect(h.apply).not.toBeNull();
     const emptyP = Array.from({ length: N * N }, () => ({ state: 'empty' as const }));
     const wrongCells = emptyP.map((m, i) => (i === wrongCell(0) ? { state: 'cat' as const } : m));
-    expect(getHint(P, wrongCells, null)!.apply).toBeNull();
+    expect(getHint(P, wrongCells, null).apply).toBeNull();
   });
 });
 
@@ -190,6 +196,77 @@ describe('CA19 mensagens', () => {
   });
   it('exemplo T5 em texto', () => {
     const msg = hintMessage({ tech: 5, cats: [], xs: [0], lineKind: 'col', lines: [4, 5], regions: [3, 7], premise: [] }, 10);
-    expect(msg).toBe('As cores Roxo e Rosa só têm casas nas colunas 5 e 6. Elas ocupam essas colunas, então as casas de outras cores nelas não podem ter gatinho: marque ✕ nelas.');
+    expect(msg).toBe('As cores Roxo e Rosa só têm casas livres nas colunas 5 e 6. Elas ocupam essas colunas, então as casas de outras cores nelas não podem ter gatinho: marque ✕ nelas.');
+  });
+});
+
+describe('dicas só com o estado visível', () => {
+  const level = (k: number) => {
+    const r = generateLevel(k);
+    if (!r.ok) throw new Error(r.error);
+    return r.puzzle;
+  };
+  const cellsOf = (p: Puzzle, cat: [number, number][], x: number[] = []): Mark[] =>
+    Array.from({ length: p.size ** 2 }, (_, i) => (cat.some(([r, c]) => r * p.size + c === i) ? { state: 'cat' as const } : x.includes(i) ? { state: 'x' as const } : { state: 'empty' as const }));
+
+  it('nível 25 (9×9), gatinho Azul em (5,2): a 1ª dica é a de consequência, não a da linha 6', () => {
+    const p = level(25);
+    expect(p.solution[4]).toBe(1); // linha 5, coluna 2 (cor Azul)
+    const h = getHint(p, cellsOf(p, [[4, 1]]), 4 * 9 + 1);
+    expect(h.deduction!.tech).toBe(0);
+    expect(h.areaText).toContain('O gatinho Azul (linha 5, coluna 2) já descarta estas casas');
+    expect(h.areaCells).toEqual([4 * 9 + 1]);
+    expect(h.apply!.xs.length).toBeGreaterThan(0);
+  });
+  it('nível 27 (10×10): só as casas do gatinho que ainda não têm ✕ entram na dica; depois de marcá-las, vem outra técnica', () => {
+    const p = level(27);
+    const n = p.size;
+    const cat = [3, 7] as [number, number]; // (4,8)
+    const all = visibleState(p, cellsOf(p, [cat]));
+    const full = hintDeductions(all, true)[0]; // consequências do gatinho
+    expect(full.tech).toBe(0);
+    const rest = [7 * n + 7, 8 * n + 7]; // (8,8) e (9,8): coluna 8
+    const x = full.xs.filter((i) => !rest.includes(i));
+    const g = cellsOf(p, [cat], x);
+    const h = getHint(p, g, null);
+    expect(h.deduction!.tech).toBe(0);
+    expect(h.apply!.xs).toEqual(rest);
+    expect(h.message).toContain('Marque ✕ nelas.');
+    const g2 = g.map((m, i) => (rest.includes(i) ? { state: 'x' as const } : m));
+    expect(getHint(p, g2, null).deduction!.tech).not.toBe(0);
+  });
+  it('estados aleatórios válidos: dica correta, sem citar casas ocupadas, e igual com outra solução', () => {
+    const rnd = mulberry32(7);
+    for (const k of [3, 12, 25, 27]) {
+      const p = level(k);
+      const n = p.size;
+      for (let t = 0; t < 25; t++) {
+        const cells: Mark[] = Array.from({ length: n * n }, (_, i) => {
+          const sol = p.solution[Math.floor(i / n)] === i % n;
+          if (sol) return rnd() < 0.25 ? { state: 'cat' } : { state: 'empty' };
+          return rnd() < 0.35 ? { state: 'x' } : { state: 'empty' };
+        });
+        const h = getHint(p, cells, null);
+        expect(h.kind).not.toBe('error');
+        // outra "solução" (lixo): o resultado não pode mudar
+        expect(getDeduction({ ...p, solution: p.solution.map(() => 0) } as Puzzle, cells, null)).toEqual(h);
+        if (h.kind !== 'deduction') continue;
+        const d = h.deduction!;
+        for (const i of [...d.xs, ...d.cats]) expect(cells[i].state).toBe('empty');
+        for (const i of d.xs) expect(p.solution[Math.floor(i / n)] === i % n).toBe(false); // sólida
+        for (const i of d.cats) expect(p.solution[Math.floor(i / n)] === i % n).toBe(true);
+        if (d.tech === 0) expect(d.premise.every((i) => cells[i].state === 'cat')).toBe(true);
+        else for (const i of d.premise) expect(cells[i].state).not.toBe('cat'); // prova de linha/coluna/cor pode incluir casas já com ✕
+        expect(h.message.startsWith(h.areaText)).toBe(true);
+      }
+    }
+  });
+  it('sem dedução simples: mostra o aviso; o "Fazer por mim" não aparece', () => {
+    const p = level(1);
+    const solved = Array.from({ length: p.size ** 2 }, (_, i) => (p.solution[Math.floor(i / p.size)] === i % p.size ? { state: 'cat' as const } : { state: 'x' as const }));
+    const h = getHint(p, solved, null);
+    expect(h.kind).toBe('none');
+    expect(h.message).toBe('Não achei uma dedução simples a partir daqui.');
+    expect(h.apply).toBeNull();
   });
 });

@@ -46,7 +46,7 @@ export async function dragCells(page: Page, cells: number[]): Promise<void> {
 }
 
 export const state = (page: Page, i: number) => page.locator(`.cell[data-i="${i}"]`).getAttribute('aria-label').then((s) => s!.split(': ')[1]);
-export const expectState = async (page: Page, i: number, want: 'vazia' | 'marcada com X' | 'gatinho') => expect(await state(page, i)).toBe(want);
+export const expectState = async (page: Page, i: number, want: 'vazia' | 'marcada com X' | 'gatinho' | 'marcada com X vermelho') => expect(await state(page, i)).toBe(want);
 
 /** Uma casa sem gatinho que não encosta em nenhum (qualquer casa fora das casas da solução). */
 export function nonCat(n: number, cats: number[], skip = 0): number {

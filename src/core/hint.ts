@@ -1,18 +1,19 @@
-import { type Deduction, isSolved, lowestDeductions, stateFromMarks } from './human';
+import { type Deduction, hintDeductions, isSolved, visibleState } from './human';
 import { areaMessage, hintMessage } from './messages';
 import type { Mark, Puzzle } from './types';
 
-export const ERROR_MESSAGE = 'tem algo errado aqui';
+export const ERROR_MESSAGE = 'Tem algo errado aqui.';
+export const NONE_MESSAGE = 'Não achei uma dedução simples a partir daqui.';
 
 export interface Hint {
-  kind: 'error' | 'deduction';
+  kind: 'error' | 'deduction' | 'none';
   /** nível 1: casas da premissa (por que a dedução vale) */
   areaCells: number[];
   areaText: string;
   /** nível 2: frase */
   message: string;
   /** nível 2: as casas da conclusão (riscar / gatinho) saem em `deduction`; nível 3: o que o botão Aplicar marca */
-  apply: { cats: number[]; xs: number[] } | null;
+  apply: { cats: number[]; xs: number[]; /** ✕ do jogador a tirar (dica de erro) */ clear?: number[] } | null;
   deduction?: Deduction;
 }
 
@@ -45,24 +46,38 @@ function pickClosest<T>(items: T[], cellsOf: (t: T) => number[], size: number, l
   });
 }
 
-export function getHint(puzzle: Puzzle, cells: Mark[], lastMove: number | null): Hint | null {
-  const n = puzzle.size;
-  const errors = findErrors(puzzle, cells);
-  if (errors.length) {
-    const e = pickClosest(errors, (x) => [x], n, lastMove);
-    return { kind: 'error', areaCells: [e], areaText: ERROR_MESSAGE, message: ERROR_MESSAGE, apply: null };
-  }
-  const s = stateFromMarks(puzzle, cells);
-  if (isSolved(s)) return null;
-  const ds = lowestDeductions(s);
-  if (!ds.length) return null;
-  const d = pickClosest(ds, (x) => [...x.cats, ...x.xs], n, lastMove);
+/**
+ * Dedução a partir do estado VISÍVEL. Não recebe a solução de propósito: ela nunca gera dica.
+ * `none` = nenhuma técnica achou algo novo.
+ */
+export function getDeduction(puzzle: Pick<Puzzle, 'size' | 'regions' | 'difficulty'>, cells: Mark[], lastMove: number | null): Hint {
+  const s = visibleState(puzzle, cells);
+  const ds = isSolved(s) ? [] : hintDeductions(s, puzzle.difficulty === 'expert');
+  if (!ds.length) return { kind: 'none', areaCells: [], areaText: NONE_MESSAGE, message: NONE_MESSAGE, apply: null };
+  const d = pickClosest(ds, (x) => [...x.cats, ...x.xs], puzzle.size, lastMove);
   return {
     kind: 'deduction',
     areaCells: d.premise,
-    areaText: areaMessage(d, n),
-    message: hintMessage(d, n),
+    areaText: areaMessage(d, puzzle.size),
+    message: hintMessage(d, puzzle.size),
     apply: { cats: d.cats, xs: d.xs },
     deduction: d,
+  };
+}
+
+/** A solução só entra aqui, para achar erros do jogador; as deduções vêm de getDeduction. */
+export function getHint(puzzle: Puzzle, cells: Mark[], lastMove: number | null): Hint {
+  const n = puzzle.size;
+  const errors = findErrors(puzzle, cells);
+  if (!errors.length) return getDeduction(puzzle, cells, lastMove);
+  const e = pickClosest(errors, (x) => [x], n, lastMove);
+  // ✕ do jogador sobre casa de gatinho: 3 níveis (dica geral → casa → "Tirar este ✕"); gatinho fora do lugar: só o aviso
+  if (cells[e].state !== 'x') return { kind: 'error', areaCells: [e], areaText: ERROR_MESSAGE, message: ERROR_MESSAGE, apply: null };
+  return {
+    kind: 'error',
+    areaCells: [e],
+    areaText: `Algum ✕ seu está numa casa onde pode haver gatinho. Confira a coluna ${(e % n) + 1}.`,
+    message: `Este ✕ (linha ${Math.floor(e / n) + 1}, coluna ${(e % n) + 1}) está numa casa onde pode haver gatinho.`,
+    apply: { cats: [], xs: [], clear: [e] },
   };
 }

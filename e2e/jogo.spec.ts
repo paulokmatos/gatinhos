@@ -30,7 +30,7 @@ test('duplo toque numa casa sem gatinho gasta 1 tentativa e mostra o aviso', asy
   const { n, cats } = await solution(page);
   const a = nonCat(n, cats);
   await tapCell(page, a, 2);
-  await expectState(page, a, 'vazia');
+  await expectState(page, a, 'marcada com X vermelho');
   await expect(page.locator('#tries')).toHaveAttribute('aria-label', '2 de 3 tentativas restantes');
   await expect(page.locator('#crack')).toBeVisible();
 });
@@ -51,6 +51,16 @@ test('CA03 arrastar marca ✕ nas casas e um único Desfazer limpa tudo', async 
   for (const i of row) await expectState(page, i, 'marcada com X');
   await page.locator('#undo').click();
   for (const i of row) await expectState(page, i, 'vazia');
+});
+
+test('arrastar começando num ✕ desmarca as casas do caminho; um Desfazer devolve todas', async ({ page }) => {
+  const { n, cats } = await solution(page);
+  const row = Array.from({ length: n }, (_, c) => c).filter((i) => !cats.includes(i)).slice(0, 3);
+  await dragCells(page, row);
+  await dragCells(page, row);
+  for (const i of row) await expectState(page, i, 'vazia');
+  await page.locator('#undo').click();
+  for (const i of row) await expectState(page, i, 'marcada com X');
 });
 
 test('CA17 dica em 3 passos: motivo, o que fazer, fazer por mim', async ({ page }) => {

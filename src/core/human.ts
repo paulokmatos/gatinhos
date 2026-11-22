@@ -12,7 +12,8 @@
  */
 import type { Difficulty, Mark, Puzzle } from './types';
 
-export type Tech = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+/** 0 = "consequência" (só nas dicas): casas que um gatinho achado já descarta e ainda não têm ✕ */
+export type Tech = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type UnitKind = 'row' | 'col' | 'region';
 
 export interface Deduction {
@@ -51,6 +52,14 @@ export function stateFromMarks(puzzle: Puzzle, cells: Mark[]): HState {
     if (m.state === 'cat') eliminateAround(s, i);
   });
   return s;
+}
+
+/**
+ * Estado VISÍVEL (usado pelas dicas): só vale o que está na tela. Casa livre = casa sem ✕, sem ✕ vermelho e sem gatinho;
+ * o que um gatinho elimina NÃO é deduzido aqui (a técnica 0 manda o jogador marcar essas casas).
+ */
+export function visibleState(puzzle: Pick<Puzzle, 'size' | 'regions'>, cells: Mark[]): HState {
+  return { n: puzzle.size, reg: puzzle.regions.flat(), cand: cells.map((m) => m.state === 'empty'), cats: cells.map((m) => m.state === 'cat') };
 }
 
 function eliminateAround(s: HState, i: number): void {
@@ -255,6 +264,20 @@ function t7(s: HState): Deduction[] {
   return out;
 }
 
+/** Técnica 0: para cada gatinho achado, as casas que ele descarta e ainda estão livres. */
+function t0(s: HState): Deduction[] {
+  const out: Deduction[] = [];
+  s.cats.forEach((isCat, i) => {
+    if (!isCat) return;
+    const t = cloneState(s);
+    t.cand = s.cand.map(() => true);
+    eliminateAround(t, i);
+    const xs = s.cand.map((v, j) => (v && !t.cand[j] && j !== i ? j : -1)).filter((j) => j >= 0);
+    if (xs.length) out.push({ tech: 0, cats: [], xs, lines: [rowOf(s, i), colOf(s, i)], regions: [s.reg[i]], premise: [i] });
+  });
+  return out;
+}
+
 export const TECHNIQUES: ((s: HState) => Deduction[])[] = [t1, t2, t3, t4, t5, t6, t7];
 
 /** Técnica por técnica (T1→T7): devolve todas as deduções do menor nível que gera algo novo. */
@@ -298,4 +321,16 @@ export function humanSolve(puzzle: Puzzle): SolveReport {
     }
   }
   return { solved: true, hardest, difficulty: hardest ? difficultyOfTech(hardest) : 'facil', techUsed: [...used].sort() };
+}
+
+/**
+ * Ordem das dicas (a primeira técnica que gera algo novo vence): consequência, único, cor presa, linha de uma cor,
+ * grupos, casa que mata uma cor, e (só no Expert) hipótese de profundidade 1.
+ */
+export function hintDeductions(s: HState, expert: boolean): Deduction[] {
+  for (const t of [t0, t1, t2, t3, t5, t6, t4, ...(expert ? [t7] : [])]) {
+    const d = t(s);
+    if (d.length) return d;
+  }
+  return [];
 }
