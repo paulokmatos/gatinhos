@@ -37,6 +37,9 @@ const fmt = (ms: number) => {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
 
+const subtitle = (g: GameState) =>
+  `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${g.puzzle.size}×${g.puzzle.size} · ${fmt(elapsedMs(g))}`;
+
 const X_SVG = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="display:block"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round"/></svg>';
 const X_RED = X_SVG.replace('#FFFFFF', '#D93A3F');
 const SPARK_COLORS = ['#FFD23F', '#FFFFFF', '#FF8FB1', '#7FD4FF'];
@@ -94,7 +97,7 @@ function render(): void {
   $('tip').hidden = g.won;
 
   $('title').textContent = `Nível ${level}`;
-  $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
+  $('sub').textContent = subtitle(g);
   ($('undo') as HTMLButtonElement).disabled = !canUndo(g);
   ($('redo') as HTMLButtonElement).disabled = !canRedo(g);
   ($('restart') as HTMLButtonElement).disabled = g.won;
@@ -332,7 +335,7 @@ document.addEventListener('click', (e) => {
 });
 
 setInterval(() => {
-  if (game && !game.won && !loading) $('sub').textContent = `${game.puzzle.difficulty ? DIFFICULTY_LABEL[game.puzzle.difficulty] : 'Fixa'} · ${game.puzzle.size}×${game.puzzle.size} · ${fmt(elapsedMs(game))}`;
+  if (game && !game.won && !loading) $('sub').textContent = subtitle(game);
 }, 1000);
 
 document.addEventListener('visibilitychange', () => {
