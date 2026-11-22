@@ -4,8 +4,8 @@ import { FIXED_LEVELS } from '../core/levels';
 import { prefetchLevel, requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel, specForTier } from '../core/progression';
-import { nextTier, tierOf } from '../core/difficulty';
-import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, recordResult, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
+import { nextTier } from '../core/difficulty';
+import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, saveProgress, setName, settle, skipLevel, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { setupUpdates } from './pwa';
@@ -163,18 +163,13 @@ function render(): void {
 const tierFor = (k: number) => nextTier(progress.rating, progress.recent, k, progress.lastPlayed, Date.now());
 
 function update(next: GameState): void {
-  const sized = tierOf(next.puzzle.size, next.puzzle.difficulty) >= 0; // nível fixo de reserva não entra na nota
-  const finished = (won: boolean) => ({ won, mistakes: next.mistakes, hintsUsed: next.hintsUsed, powersUsed: next.powersUsed, timeMs: elapsedMs(next), size: next.puzzle.size });
-  if (next.won && game && !game.won) {
-    progress = recordCompletion(progress, level, elapsedMs(next));
-    if (sized && !next.continued) progress = recordResult(progress, finished(true)); // quem já perdeu e continuou não conta de novo
+  const settled = game ? settle(progress, level, game, next) : progress;
+  if (settled !== progress) {
+    progress = settled;
     saveProgress(kv, progress);
-    prefetchLevel(level + 1, tierFor(level + 1)); // com a nota já atualizada
-  } else if (game && isLost(next) && !isLost(game) && sized) {
-    progress = recordResult(progress, finished(false));
-    saveProgress(kv, progress);
+    if (next.won) prefetchLevel(level + 1, tierFor(level + 1));
   }
-if (game && next.mistakes > game.mistakes) {
+  if (game && next.mistakes > game.mistakes) {
     if (isLost(next)) { breakIdx = attemptsLeft(next); window.setTimeout(() => { breakIdx = -1; if (game) render(); }, 1300); }
     else crack(attemptsLeft(next));
   }
