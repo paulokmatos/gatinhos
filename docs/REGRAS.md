@@ -16,7 +16,7 @@
 | Tentativas, palpite, perder, recomeçar sem regerar | `tests/attempts.test.ts` | 3 tentativas/nível; duplo toque (até 400 ms) = 1 palpite; perder trava; recomeçar mantém o mesmo nível |
 | Gerador (seed, regiões, unicidade, erro tratado) | `tests/generator.test.ts` | CA06–CA09 |
 | Solver humano T1–T7, classificação, progressão 1–100 | `tests/human.test.ts` | CA10–CA12 |
-| Etapas/progressão, gatinho de brinde, poder, progresso, nome, `?nivel=` | `tests/progress.test.ts` | seção 2.6–2.9 |
+| Etapas/progressão, gatinho de brinde, poder, progresso, nome, `?nivel=`, fechar o nível (`settle`: concluir e nota uma vez só) | `tests/progress.test.ts` | seção 2.6–2.9 |
 | Dificuldade adaptativa (desempenho, nota, onda, degraus) | `tests/difficulty.test.ts` | seção 2.8 |
 | Dicas (erro, passo mais fácil, desempate, 3 passos, mensagens) | `tests/hints.test.ts` | CA13–CA20 + "motivo → o que fazer" |
 | Persistência, manifest, offline (parte automática), solução fora do localStorage | `tests/m5.test.ts` | CA21–CA23 |
