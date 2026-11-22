@@ -31,6 +31,7 @@ export interface GameState {
   continued: boolean;
   startedAt: number;
   finishedAt: number | null;
+  pausedAt: number | null;
   won: boolean;
   lastMove: number | null;
   /** dica em andamento: nível 1–3 (3 = mostra Aplicar) */
@@ -59,6 +60,7 @@ export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState 
     continued: false,
     startedAt: opts.now ?? Date.now(),
     finishedAt: null,
+    pausedAt: null,
     won: false,
     lastMove: null,
     hint: null,
@@ -209,7 +211,7 @@ export function continueAfterLoss(g: GameState): GameState {
 }
 
 export function restart(g: GameState, now = Date.now()): GameState {
-  return newGame(g.puzzle, { now });
+  return g.won ? g : newGame(g.puzzle, { now });
 }
 
 export function canHint(g: GameState): boolean {
@@ -237,4 +239,9 @@ export function applyHint(g: GameState): GameState {
 }
 
 export const isWon = (g: GameState) => g.won;
-export const elapsedMs = (g: GameState, now = Date.now()) => (g.finishedAt ?? now) - g.startedAt;
+export const elapsedMs = (g: GameState, now = Date.now()) => (g.finishedAt ?? g.pausedAt ?? now) - g.startedAt;
+
+export const pause = (g: GameState, now = Date.now()): GameState => (g.won || g.pausedAt !== null ? g : { ...g, pausedAt: now });
+
+export const resume = (g: GameState, now = Date.now()): GameState =>
+  g.pausedAt === null ? g : { ...g, startedAt: g.startedAt + Math.max(0, now - g.pausedAt), pausedAt: null };

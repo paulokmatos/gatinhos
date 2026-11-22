@@ -40,10 +40,10 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 ### 2.3 Tentativas
 - **3 por nível**. Ao zerar: o jogo trava e aparece o aviso "Sem tentativas" (com ✕ para fechar): **Tentar novamente** (destaque) ou **Continuar sem limite**.
 - Se o aviso for fechado: tabuleiro **congelado** e a barra de baixo mostra **só** *Tentar novamente* e *Próximo nível* (esse apenas avança o ponto de retomada; não conta como concluído).
-- **Recomeçar nível** (⟲ no cabeçalho) **sempre pede confirmação**; limpa o tabuleiro, devolve as 3 tentativas e o uso do poder; **não regera** o nível (mesmas cores e posições; gatinhos de brinde continuam).
+- **Recomeçar nível** (⟲ no cabeçalho) **sempre pede confirmação**; limpa o tabuleiro, devolve as 3 tentativas e o uso do poder; **não regera** o nível (mesmas cores e posições; gatinhos de brinde continuam). Depois de vencer, o ⟲ fica desligado (senão o mesmo nível contaria como concluído de novo e a nota subiria à toa).
 
 ### 2.4 Vitória
-- Dispara **uma única vez**. Mostra tempo, dicas, poderes e tentativas restantes (e o nome, se houver). Modal com ✕; fechado, o botão "Dica" vira **Próximo nível**.
+- Dispara **uma única vez**. O **tempo** do nível só corre com o app aberto: em segundo plano (ou fechado e reaberto depois) ele fica parado. Mostra tempo, dicas, poderes e tentativas restantes (e o nome, se houver). Modal com ✕; fechado, o botão "Dica" vira **Próximo nível**.
 
 ### 2.5 Dicas
 - **Só estado visível**: gatinhos achados + ✕ do jogador + ✕ vermelhos. A solução **nunca** gera dica (só detecta erros do jogador); nada de eliminação implícita: o que um gatinho achado descarta e ainda não tem ✕ vira a própria dica (técnica 0). Código: `getDeduction` (não recebe a solução) e `getHint` (erros primeiro, depois a dedução).
