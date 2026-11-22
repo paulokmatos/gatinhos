@@ -54,6 +54,12 @@ describe('tiers e geração', () => {
     expect(tierOf(4, 'facil')).toBe(-1);
     expect(tierOf(5, undefined)).toBe(-1);
   });
+  it('gatinho de brinde nos degraus: nenhum abaixo do 9×9 Difícil, depois a chance só cai', () => {
+    const chances = TIERS.map((_, i) => specForTier(7, i).givenChance);
+    expect(chances.slice(0, 5).every((c) => c === 0)).toBe(true);
+    expect(chances[5]).toBeGreaterThan(0);
+    for (let i = 6; i < chances.length; i++) expect(chances[i]).toBeLessThanOrEqual(chances[i - 1]);
+  });
   it('cada tier gera um nível com o tamanho e a dificuldade do tier, igual em duas execuções', () => {
     TIERS.forEach((x, i) => {
       const r = generateLevel(7, 3000, i);
@@ -62,6 +68,7 @@ describe('tiers e geração', () => {
       expect([r.puzzle.size, r.puzzle.difficulty]).toEqual([x.size, x.difficulty]);
       expect(r).toEqual(generateLevel(7, 3000, i));
       expect(specForTier(7, i).size).toBe(x.size);
+      for (const g of r.puzzle.givens ?? []) expect(r.puzzle.solution[Math.floor(g / x.size)]).toBe(g % x.size);
     });
   }, 120_000);
 });
