@@ -42,6 +42,8 @@ const locked = (g: GameState) => g.won || isLost(g);
 export const attemptsLeft = (g: GameState) => Math.max(0, MAX_ATTEMPTS - g.mistakes);
 
 const EMPTY: Mark = { state: 'empty' };
+/** casas que o jogador não altera: gatinho e ✕ vermelho */
+const LOCKED = new Set<string>(['cat', 'bad']);
 
 export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState {
   return {
@@ -74,7 +76,7 @@ function commit(g: GameState, changes: Change[], last: number | null): GameState
   if (!real.length) return g;
   const cells = g.cells.slice();
   for (const c of real) cells[c.index] = { ...c.after };
-  const marks = real.filter((c) => c.before.state !== 'cat' && c.after.state !== 'cat');
+  const marks = real.filter((c) => !LOCKED.has(c.before.state) && !LOCKED.has(c.after.state));
   return finalize({
     ...g,
     cells,
@@ -88,7 +90,7 @@ function commit(g: GameState, changes: Change[], last: number | null): GameState
 }
 
 /** Mudanças de uma entrada que ainda valem agora (casas que viraram gatinho não voltam atrás). */
-const effective = (g: GameState, entry: Change[]) => entry.filter((c) => g.cells[c.index].state !== 'cat');
+const effective = (g: GameState, entry: Change[]) => entry.filter((c) => !LOCKED.has(g.cells[c.index].state));
 
 export const canUndo = (g: GameState) => !locked(g) && g.history.some((e) => effective(g, e).length > 0);
 export const canRedo = (g: GameState) => !locked(g) && g.redo.some((e) => effective(g, e).length > 0);
@@ -111,20 +113,20 @@ export const DOUBLE_TAP_MS = 400;
  * Duplo toque (2 toques na mesma casa em até DOUBLE_TAP_MS) = uma tentativa de achar o gatinho. O que decide acerto ou erro é
  * só haver (ou não) um gatinho ali; ter ou não um X na casa não importa.
  *  - 1º toque: casa vazia vira X (anotação do jogador, nunca automática); casa com X perde o X na hora.
- *  - 2º toque dentro da janela: se há gatinho, ele aparece; se não há, o X é limpo e a tentativa é gasta (MAX_ATTEMPTS).
+ *  - 2º toque dentro da janela: se há gatinho, ele aparece; se não há, a casa ganha ✕ vermelho travado e a tentativa é gasta (MAX_ATTEMPTS).
  * Um gatinho revelado não some ao tocar de novo.
  */
 export function tap(g: GameState, i: number, now = Date.now()): GameState {
   if (locked(g)) return g;
   const before = g.cells[i];
-  if (before.state === 'cat') return g.armed === null ? g : { ...g, armed: null };
+  if (LOCKED.has(before.state)) return g.armed === null ? g : { ...g, armed: null };
   const n = g.puzzle.size;
   const isCatCell = g.puzzle.solution[Math.floor(i / n)] === i % n;
   if (g.armed === i && now - g.armedAt <= DOUBLE_TAP_MS) {
-    const after: Mark = isCatCell ? { state: 'cat' } : { ...EMPTY };
-    const next = commit(g, before.state === after.state ? [] : [{ index: i, before, after }], i);
-    const base = next === g ? { ...g, lastMove: i, hint: null } : next;
-    return { ...base, armed: null, mistakes: isCatCell ? g.mistakes : g.mistakes + 1 };
+    // palpite errado: a casa ganha um ✕ vermelho travado (fato confirmado; única exceção à regra "✕ nunca é automático")
+    const after: Mark = { state: isCatCell ? 'cat' : 'bad' };
+    const next = commit(g, [{ index: i, before, after }], i);
+    return { ...next, armed: null, mistakes: isCatCell ? g.mistakes : g.mistakes + 1 };
   }
   // toque numa casa com ✕ (fora de um duplo toque): tira a marca na hora e arma a casa; um 2º toque rápido é o palpite
   if (before.state === 'x') return { ...commit(g, [{ index: i, before, after: { ...EMPTY } }], i), armed: i, armedAt: now };
@@ -132,17 +134,18 @@ export function tap(g: GameState, i: number, now = Date.now()): GameState {
   return g;
 }
 
-/** Arrasto: casas vazias percorridas viram X, sem sobrescrever gatinhos (nem marcas ✕). */
+/**
+ * Arrasto: segue a casa onde começou. Começou numa casa vazia → ✕ em todas as vazias percorridas;
+ * começou numa casa com ✕ → tira o ✕ de todas as percorridas. Gatinho e ✕ vermelho são ignorados.
+ * Tudo numa única entrada de histórico.
+ */
 export function dragX(g: GameState, path: number[]): GameState {
-  if (locked(g)) return g;
-  const seen = new Set<number>();
-  const changes: Change[] = [];
-  for (const i of path) {
-    if (seen.has(i) || g.cells[i].state !== 'empty') continue;
-    seen.add(i);
-    changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
-  }
-  return commit(g, changes, path.length ? path[path.length - 1] : null);
+  if (locked(g) || !path.length) return g;
+  const from = g.cells[path[0]].state;
+  if (from !== 'empty' && from !== 'x') return g;
+  const after: Mark = { state: from === 'empty' ? 'x' : 'empty' };
+  const changes = [...new Set(path)].filter((i) => g.cells[i].state === from).map((index) => ({ index, before: g.cells[index], after }));
+  return commit(g, changes, path[path.length - 1]);
 }
 
 export function undo(g: GameState): GameState {
@@ -216,11 +219,8 @@ export function canHint(g: GameState): boolean {
 /** Toque no botão de dica: 1 = área, 2 = frase, 3 = botão Fazer por mim. Não conta em hintsUsed. */
 export function pressHint(g: GameState): GameState {
   if (!canHint(g)) return g;
-  if (!g.hint) {
-    const data = getHint(g.puzzle, g.cells, g.lastMove);
-    return data ? { ...g, hint: { level: 1, data } } : g;
-  }
-  if (g.hint.level === 3) return g;
+  if (!g.hint) return { ...g, hint: { level: 1, data: getHint(g.puzzle, g.cells, g.lastMove) } };
+  if (g.hint.level === 3 || g.hint.data.kind === 'none') return g;
   return { ...g, hint: { ...g.hint, level: (g.hint.level + 1) as 2 | 3 } };
 }
 
@@ -229,8 +229,9 @@ export function applyHint(g: GameState): GameState {
   const h = g.hint;
   if (!h || h.level !== 3 || !h.data.apply || locked(g)) return g;
   const changes: Change[] = [];
-  for (const i of h.data.apply.xs) if (g.cells[i].state !== 'x') changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
+  for (const i of h.data.apply.xs) if (g.cells[i].state === 'empty') changes.push({ index: i, before: g.cells[i], after: { state: 'x' } });
   for (const i of h.data.apply.cats) if (g.cells[i].state !== 'cat') changes.push({ index: i, before: g.cells[i], after: { state: 'cat' } });
+  for (const i of h.data.apply.clear ?? []) if (g.cells[i].state === 'x') changes.push({ index: i, before: g.cells[i], after: { ...EMPTY } });
   const next = commit(g, changes, changes[0]?.index ?? g.lastMove);
   return next === g ? g : { ...next, hintsUsed: g.hintsUsed + 1 };
 }

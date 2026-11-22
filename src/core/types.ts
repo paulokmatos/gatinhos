@@ -11,7 +11,8 @@ export interface Puzzle {
 }
 
 export type Difficulty = 'facil' | 'medio' | 'dificil' | 'expert';
-export type CellState = 'empty' | 'x' | 'cat';
+/** 'bad' = ✕ vermelho automático de palpite errado: fato confirmado, travado (só some ao recomeçar) */
+export type CellState = 'empty' | 'x' | 'cat' | 'bad';
 
 export interface Mark {
   state: CellState;

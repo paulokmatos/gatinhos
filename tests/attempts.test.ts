@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, isLost, MAX_ATTEMPTS, newGame, restart, tap, undo } from '../src/core/game';
+import { attemptsLeft, canHint, continueAfterLoss, DOUBLE_TAP_MS, dragX, isLost, MAX_ATTEMPTS, newGame, redo, restart, tap, undo } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { load, save, type KV } from '../src/core/storage';
 
@@ -17,7 +17,7 @@ describe('tentativas (máx. 3 por nível)', () => {
     expect(g.cells[right(0)].state).toBe('cat');
     expect(attemptsLeft(g)).toBe(3);
     g = guess(g, wrong(1));
-    expect(g.cells[wrong(1)].state).toBe('empty');
+    expect(g.cells[wrong(1)].state).toBe('bad');
     expect(attemptsLeft(g)).toBe(2);
   });
   it('marca ✕ e arrastar nunca gastam tentativas', () => {
@@ -64,7 +64,7 @@ describe('duplo toque (2 toques rápidos) = 1 palpite (a marca ✕ não importa,
   });
   it('2 toques numa casa sem gatinho: erra e gasta 1, mesmo sem X prévio', () => {
     const g = tap(tap(newGame(P), wrong(0)), wrong(0));
-    expect(g.cells[wrong(0)].state).toBe('empty');
+    expect(g.cells[wrong(0)].state).toBe('bad');
     expect(g.mistakes).toBe(1);
   });
   it('2º toque fora da janela do duplo toque não é palpite: só arma de novo', () => {
@@ -83,7 +83,7 @@ describe('duplo toque (2 toques rápidos) = 1 palpite (a marca ✕ não importa,
     expect(g.cells[wrong(1)].state).toBe('empty'); // ✕ removido sem esperar
     g = tap(g, wrong(1));
     expect(g.mistakes).toBe(1);
-    expect(g.cells[wrong(1)].state).toBe('empty');
+    expect(g.cells[wrong(1)].state).toBe('bad');
     let h = dragX(newGame(P), [right(2)]);
     h = tap(tap(h, right(2)), right(2));
     expect(h.cells[right(2)].state).toBe('cat');
@@ -115,5 +115,45 @@ describe('recomeçar nível (sem gerar outras posições)', () => {
     const given = P.solution[0];
     const r = restart(newGame({ ...P, givens: [given] }));
     expect(r.cells[given].state).toBe('cat');
+  });
+});
+
+describe('✕ vermelho (palpite errado) e arrasto que desmarca', () => {
+  const bad = () => guess(newGame(P), wrong(0));
+  it('palpite errado cria ✕ vermelho travado: toque, arrasto, desfazer e refazer não mexem', () => {
+    let g = bad();
+    expect(g.cells[wrong(0)].state).toBe('bad');
+    expect(g.history).toHaveLength(1); // só o ✕ do 1º toque; o vermelho não entra no histórico
+    g = tap(tap(g, wrong(0), 5000), wrong(0), 5100);
+    expect(g.mistakes).toBe(1); // palpite em ✕ vermelho é ignorado
+    g = dragX(g, [wrong(0), wrong(0) + 1]);
+    expect(g.cells[wrong(0)].state).toBe('bad');
+    g = dragX(g, [wrong(0) + 1, wrong(0), wrong(0) + 2]);
+    expect(g.cells[wrong(0)].state).toBe('bad');
+    expect(undo(g).cells[wrong(0)].state).toBe('bad');
+    expect(redo(undo(g)).cells[wrong(0)].state).toBe('bad');
+  });
+  it('✕ do jogador desfeito antes do palpite não volta por cima do vermelho', () => {
+    let g = tap(newGame(P), wrong(0)); // ✕ do jogador (entra no histórico)
+    g = tap(g, wrong(0), g.armedAt + 10); // palpite
+    expect(g.cells[wrong(0)].state).toBe('bad');
+    expect(undo(g).cells[wrong(0)].state).toBe('bad');
+  });
+  it('recomeçar limpa o ✕ vermelho', () => {
+    expect(restart(bad()).cells[wrong(0)].state).toBe('empty');
+  });
+  it('arrasto que começa num ✕ remove os ✕ do caminho (e só deles); um Desfazer restaura todos', () => {
+    let g = dragX(newGame(P), [0, 1, 2, 3, 4]); // 5 ✕
+    g = tap(tap(g, 7), 7); // casa 7 (r1): palpite (certo ou errado); só para ter outro estado no caminho
+    const before = g.cells.map((m) => m.state);
+    const h = dragX(g, [1, 2, 3, 5, 6, 7]); // começa num ✕; 5 e 6 vazias; 7 pode ser gatinho/vermelho
+    expect(h.cells.slice(1, 4).every((m) => m.state === 'empty')).toBe(true);
+    expect(h.cells[0].state).toBe('x'); // fora do caminho
+    expect(h.cells[4].state).toBe('x');
+    expect([5, 6].every((i) => h.cells[i].state === before[i])).toBe(true); // vazias ignoradas
+    expect(h.cells[7].state).toBe(before[7]); // gatinho/vermelho ignorados
+    expect(h.history).toHaveLength(g.history.length + 1); // 1 passo
+    const u = undo(h);
+    expect(u.cells.map((m) => m.state)).toEqual(before);
   });
 });

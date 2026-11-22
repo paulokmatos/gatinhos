@@ -65,7 +65,7 @@ export function save(kv: KV, level: number, g: GameState, symbols: boolean): voi
   }
 }
 
-const isMark = (m: unknown): m is Mark => !!m && typeof m === 'object' && ['empty', 'x', 'cat'].includes((m as Mark).state);
+const isMark = (m: unknown): m is Mark => !!m && typeof m === 'object' && ['empty', 'x', 'cat', 'bad'].includes((m as Mark).state);
 const isChanges = (h: unknown, total: number): boolean =>
   Array.isArray(h) &&
   h.every(

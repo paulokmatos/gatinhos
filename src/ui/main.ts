@@ -38,6 +38,7 @@ const fmt = (ms: number) => {
 };
 
 const X_SVG = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="display:block"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round"/></svg>';
+const X_RED = X_SVG.replace('#FFFFFF', '#D93A3F');
 const SPARK_COLORS = ['#FFD23F', '#FFFFFF', '#FF8FB1', '#7FD4FF'];
 const SPARK_DIRS = [[0, -26], [19, -19], [26, 0], [19, 19], [0, 26], [-19, 19], [-26, 0], [-19, -19]];
 const SPARKLES = SPARK_DIRS.map((d, k) => `<span class="spk" style="--dx:${d[0]}px;--dy:${d[1]}px;background:${SPARK_COLORS[k % 4]};animation-delay:${60 + (k % 2) * 40}ms"></span>`).join('');
@@ -46,7 +47,7 @@ const CONFETTI = Array.from({ length: 22 }, (_, q) => `<span class="confetti" st
 const PAW = (on: boolean) => `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="${on ? '#26262B' : '#B8C2CC'}"><ellipse cx="12" cy="16" rx="5.2" ry="4.4"/><ellipse cx="5.5" cy="10.5" rx="2.2" ry="2.8"/><ellipse cx="9.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="14.5" cy="6.5" rx="2.2" ry="2.9"/><ellipse cx="18.5" cy="10.5" rx="2.2" ry="2.8"/></g></svg>`;
 const CLOSE_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#2F6B5E" stroke-width="2.8" stroke-linecap="round"/></svg>';
 
-const stateName = { empty: 'vazia', x: 'marcada com X', cat: 'gatinho' } as const;
+const stateName = { empty: 'vazia', x: 'marcada com X', cat: 'gatinho', bad: 'marcada com X vermelho' } as const;
 
 function render(): void {
   if (!game) return;
@@ -61,7 +62,7 @@ function render(): void {
   const area = new Set(h && h.data.kind === 'deduction' ? h.data.areaCells : []);
   const targets = new Set(h && h.level >= 2 && h.data.kind === 'deduction' ? [...h.data.deduction!.cats, ...h.data.deduction!.xs] : []);
   const dedCats = new Set(h && h.level >= 2 && h.data.kind === 'deduction' ? h.data.deduction!.cats : []);
-  const errCells = new Set(h?.data.kind === 'error' ? h.data.areaCells : []);
+  const errCells = new Set(h && h.level >= 2 && h.data.kind === 'error' ? h.data.areaCells : []);
 
   board.innerHTML = g.cells
     .map((m, i) => {
@@ -73,8 +74,9 @@ function render(): void {
       const sym = symbols ? `<span class="sym">${COLOR_SYMBOLS[reg]}</span>` : '';
       const ghost = dedCats.has(i) ? `<span class="layer ghost">${catFace(36)}</span>` : targets.has(i) && m.state === 'empty' ? `<span class="layer ghost">${X_SVG}</span>` : '';
       const x = m.state === 'x' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_SVG}</span></span>` : '';
+      const bad = m.state === 'bad' ? `<span class="layer"><span class="xmark ${fresh ? 'x-in' : ''}">${X_RED}</span></span>` : '';
       const cat = m.state === 'cat' ? `<span class="layer"><span class="${fresh ? 'cat-in' : ''}" style="display:block;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${catFace(36)}</span></span>${fresh ? `<span class="ring"></span>${SPARKLES}` : ''}` : '';
-      return `<button class="${cls}" role="gridcell" data-i="${i}" aria-label="Linha ${r + 1}, coluna ${c + 1}: ${stateName[m.state]}" style="background:${COLOR_HEX[reg]}">${sym}${x}${cat}${ghost}</button>`;
+      return `<button class="${cls}" role="gridcell" data-i="${i}" aria-label="Linha ${r + 1}, coluna ${c + 1}: ${stateName[m.state]}" style="background:${COLOR_HEX[reg]}">${sym}${x}${bad}${cat}${ghost}</button>`;
     })
     .join('');
   prevStates = g.cells.map((m) => m.state);
@@ -105,8 +107,11 @@ function render(): void {
   if (h && !g.won) {
     hint.hidden = false;
     const text = h.level === 1 ? h.data.areaText : h.data.message;
-    const tag = h.data.kind === 'deduction' ? `<small class="tag">${h.level === 1 ? 'O motivo' : 'O que fazer'}</small>` : '';
-    hint.innerHTML = `${catHint(60)}<div class="bubble"><span>${tag}${text}</span>${h.level === 3 && h.data.apply ? '<button id="apply" class="apply">Fazer por mim</button>' : ''}</div>`;
+    const tagText = h.data.kind === 'error' ? 'Erro' : h.data.kind === 'deduction' ? (h.level === 1 ? 'O motivo' : 'O que fazer') : '';
+    const tag = tagText ? `<small class="tag">${tagText}</small>` : '';
+    const ap = h.data.apply;
+    const label = h.data.kind === 'error' ? 'Tirar este ✕' : h.data.deduction?.tech === 0 ? 'Marcar ✕' : 'Fazer por mim';
+    hint.innerHTML = `${h.data.kind === 'error' ? catSad(60) : catHint(60)}<div class="bubble"><span>${tag}${text}</span>${h.level === 3 && ap ? `<button id="apply" class="apply">${label}</button>` : ''}</div>`;
   } else hint.hidden = true;
 
   $('powerCount').textContent = canReveal(g) ? '1' : '0';
@@ -245,7 +250,7 @@ async function startLevel(k: number): Promise<void> {
 }
 
 // --- entrada: toque e arrasto ---
-// Arrasto: as marcas ✕ aparecem enquanto o dedo passa (recalculadas a partir do estado do início do arrasto,
+// Arrasto (marca ou desmarca, conforme a casa de início): as mudanças aparecem enquanto o dedo passa (recalculadas a partir do estado do início do arrasto,
 // então tudo vira uma única entrada de histórico).
 let down: { start: number; path: number[]; dragging: boolean; base: GameState } | null = null;
 const cellAt = (x: number, y: number): number | null => {
@@ -264,7 +269,7 @@ board.addEventListener('pointermove', (e) => {
   if (!down) return;
   const i = cellAt(e.clientX, e.clientY);
   if (i === null || i === down.path[down.path.length - 1]) return;
-  if (down.base.cells[down.start].state !== 'empty' && !down.dragging) return;
+  if (!['empty', 'x'].includes(down.base.cells[down.start].state) && !down.dragging) return;
   down.dragging = true;
   down.path.push(i);
   game = dragX(down.base, down.path);

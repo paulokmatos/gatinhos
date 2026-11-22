@@ -55,14 +55,15 @@ describe('CA03 toque e arrasto', () => {
     expect(g.cells[catCell(0)].state).toBe('cat');
     expect(tap(g, catCell(0))).toBe(g);
   });
-  it('casa sem gatinho: o gatinho nunca aparece (✕ → vazio, gastando tentativa)', () => {
+  it('casa sem gatinho: o gatinho nunca aparece (✕ → ✕ vermelho travado, gastando 1 tentativa)', () => {
     let g = newGame(P);
     const seen = [];
     for (let i = 0; i < 4; i++) {
       g = tap(g, wrong(0));
       seen.push(g.cells[wrong(0)].state);
     }
-    expect(seen).toEqual(['x', 'empty', 'x', 'empty']);
+    expect(seen).toEqual(['x', 'bad', 'bad', 'bad']);
+    expect(g.mistakes).toBe(1); // toques seguintes no ✕ vermelho são ignorados
   });
   it('arrastar marca ✕ nas vazias sem sobrescrever gatinhos nem marcas', () => {
     let g = newGame(P);

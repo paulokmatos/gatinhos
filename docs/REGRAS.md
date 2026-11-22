@@ -31,10 +31,10 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 - Coordenadas internas partem de 0; a interface mostra linhas/colunas a partir de 1.
 
 ### 2.2 Toque, marca ✕ e palpite
-- A **marca ✕ é anotação do jogador**: **nunca** é colocada automaticamente (não existe auto-X) e pode estar errada, sem aviso.
-- 1 toque numa casa vazia = marca ✕. **Duplo toque (2 toques rápidos, até 400 ms) na mesma casa = 1 palpite**: se há gatinho, ele aparece (e **nunca some**); se não há, o ✕ é limpo e o jogador **perde 1 tentativa**. Ter ou não ✕ na casa **não importa**; só importa haver gatinho.
+- A **marca ✕ é anotação do jogador**: não é colocada automaticamente e pode estar errada, sem aviso. **Única exceção:** o **✕ vermelho** (`#D93A3F`, estado `bad`) que o palpite errado deixa na casa. Ele é um fato confirmado, não anotação: é **travado** (não sai com toque, arrasto, Desfazer nem Refazer; não entra no histórico), conta como estado visível para as dicas e só some ao **Recomeçar nível**.
+- 1 toque numa casa vazia = marca ✕. **Duplo toque (2 toques rápidos, até 400 ms) na mesma casa = 1 palpite**: se há gatinho, ele aparece (e **nunca some**); se não há, a casa ganha o ✕ vermelho e o jogador **perde 1 tentativa**. Ter ou não ✕ na casa **não importa**; só importa haver gatinho.
 - Toque numa casa com ✕ (ex.: por arrastar) **tira o ✕ na hora**; um 2º toque rápido na mesma casa é o palpite. Toques em casas diferentes nunca formam palpite.
-- **Arrastar** marca ✕ nas casas vazias por onde passa, **ao vivo** (enquanto o dedo passa), sem sobrescrever gatinho nem marca; é **uma única entrada de histórico**; nunca custa tentativa.
+- **Arrastar** segue a casa onde começou, **ao vivo**: começou numa casa **vazia** → marca ✕ em todas as vazias percorridas; começou numa casa com **✕ do jogador** → **tira** o ✕ de todas as percorridas. Gatinho e ✕ vermelho são ignorados. **Um** passo no histórico; nunca custa tentativa.
 - **Desfazer/Refazer só mexem em marcas ✕.** Gatinho é "escrita do jogo": revelado, nunca é desfeito (por palpite, poder, "Fazer por mim" ou brinde). Desfazer **não devolve tentativa**.
 
 ### 2.3 Tentativas
@@ -46,10 +46,12 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 - Dispara **uma única vez**. Mostra tempo, dicas, poderes e tentativas restantes (e o nome, se houver). Modal com ✕; fechado, o botão "Dica" vira **Próximo nível**.
 
 ### 2.5 Dicas
-- 3 toques no botão: **(1) O motivo** (casas da premissa em verde), **(2) O que fazer** (casas da conclusão em laranja, com fantasma ✕/gatinho), **(3) Fazer por mim**. Só o 3º conta em `hintsUsed`. Qualquer jogada reinicia o ciclo.
-- Mensagens explicam o **porquê** (não "olhe a linha 5"), citam cores e linhas/colunas reais (a partir de 1), ≤ 2 frases.
-- Erro (gatinho fora do lugar / ✕ sobre gatinho): "tem algo errado aqui", sem explicar e **sem "Fazer por mim"**.
-- Ordem T1→T7; desempate por distância de Chebyshev à última jogada, depois linha, depois coluna. Nunca sugere o que o jogador já marcou. Desativada com o nível resolvido.
+- **Só estado visível**: gatinhos achados + ✕ do jogador + ✕ vermelhos. A solução **nunca** gera dica (só detecta erros do jogador); nada de eliminação implícita: o que um gatinho achado descarta e ainda não tem ✕ vira a própria dica (técnica 0). Código: `getDeduction` (não recebe a solução) e `getHint` (erros primeiro, depois a dedução).
+- 3 toques no botão: **(1) O motivo** (casas de prova com contorno), **(2) O que fazer** (✕ fantasma branco a 40% nas casas que a dica elimina), **(3) Fazer por mim** (marca exatamente as casas fantasma; "Marcar ✕" na técnica 0). Só o 3º conta em `hintsUsed`. Qualquer jogada reinicia o ciclo. Cabeçalhos: O MOTIVO / O QUE FAZER / ERRO; mascote "pensando" (dica) ou "preocupado" (erro). As frases falam de casas **livres**.
+- Ordem das técnicas (a primeira que gera algo novo vence): 0 consequência de gatinho → 1 única casa livre (cor/linha/coluna) → 2 cor presa numa linha/coluna → 3 linha/coluna de uma cor só → 4 grupos de N (e pares escondidos) → 5 casa que zera uma cor → 6 tentativa e contradição de profundidade 1 (**só no Expert**). Desempate: distância de Chebyshev à última jogada, depois linha, depois coluna.
+- Sem dedução simples: "Não achei uma dedução simples a partir daqui." (sem botão).
+- **Erro** (✕ sobre casa de gatinho; checado antes das deduções, para nunca sugerir gatinho com base num ✕ errado), em 3 níveis sem revelar a solução: (1) "Algum ✕ seu está numa casa onde pode haver gatinho. Confira a coluna N."; (2) destaca a casa; (3) botão **Tirar este ✕**. Gatinho fora do lugar: só "Tem algo errado aqui.".
+- Desativada com o nível resolvido.
 
 ### 2.6 Poder "Revelar gatinho"
 - **1 uso por nível** (sem estoque). Revela o gatinho da **cor com mais casas livres**; não gasta tentativa; recomeçar devolve o uso; depois de vencer, não funciona.

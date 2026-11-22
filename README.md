@@ -25,9 +25,9 @@ Quando todos os gatinhos forem achados, o nível termina. 🎉
 
 ### Controles
 
-- **Toque uma vez** numa casa para marcar ✕ (a marca ✕ é só a *sua anotação*: nunca é colocada sozinha e pode estar errada).
-- **Duplo toque (2 toques rápidos na mesma casa) = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece e uma patinha grande é rasgada no centro da tela, e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
-- **Arraste para marcar:** passe o dedo (ou o mouse) sobre casas vazias e as marcas ✕ aparecem enquanto você passa, todas desfeitas de uma vez com um único Desfazer.
+- **Toque uma vez** numa casa para marcar ✕ (a marca ✕ é só a *sua anotação* e pode estar errada; a única marca automática é o ✕ vermelho do palpite errado, que fica travado até você recomeçar o nível).
+- **Duplo toque (2 toques rápidos na mesma casa) = 1 palpite:** se há um gatinho ali, ele aparece 🐱; se não há, é um palpite errado: o fundo escurece, uma patinha grande é rasgada no centro da tela, a casa ganha um ✕ vermelho e você perde uma tentativa. Ter ou não uma marca ✕ na casa não importa; só importa haver mesmo um gatinho.
+- **Arraste para marcar ou desmarcar:** começando numa casa vazia, as marcas ✕ aparecem nas casas por onde você passa; começando numa casa com ✕ seu, elas são tiradas. Tudo vale como um único Desfazer.
 - **Desfazer / Refazer** voltam e repetem só as suas marcas ✕. Gatinho é escrita do jogo: depois de revelado, nunca é desfeito.
 - **Recomeçar nível** (⟲, canto superior esquerdo) pede uma confirmação e, se você confirmar, limpa o tabuleiro e devolve as 3 tentativas. Os gatinhos continuam nos mesmos lugares: nada é gerado de novo.
 - **Seu nome** (o círculo ao lado dos símbolos) é opcional e fica só neste aparelho; aparece no parabéns ao vencer.
@@ -77,7 +77,7 @@ O botão **✨** abre os poderes. Por enquanto existe o **Revelar gatinho**: mos
 
 1. **Comece pelas cores pequenas.** Uma cor com poucas casas (ou numa linha/coluna só) tem pouquíssimos lugares possíveis para o gatinho.
 2. **Gatinho achado = marque ✕ ao redor.** Na linha, na coluna, na mesma cor e nas 8 casas vizinhas, ninguém mais pode ficar. Marque ✕ nelas para limpar a cabeça.
-3. **Travou? Peça a Dica.** Toque em **Dica** até 3 vezes: o 1º mostra *o porquê* (as casas do motivo ficam destacadas, ex.: "a cor Roxo só tem casas na linha 5"), o 2º diz *o que fazer* (as casas a riscar ficam em laranja) e o 3º oferece **Fazer por mim**. Só esse passo conta como dica usada.
+3. **Travou? Peça a Dica.** Toque em **Dica** até 3 vezes: o 1º mostra *o porquê* (as casas do motivo ficam destacadas, ex.: "a cor Roxo só tem casas livres na linha 5"), o 2º diz *o que fazer* (as casas a riscar aparecem com um ✕ fantasma) e o 3º oferece **Fazer por mim**. Só esse passo conta como dica usada.
 
 ---
 
