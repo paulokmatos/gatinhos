@@ -1,4 +1,5 @@
 import { MAX_TIER, performance, tierOf, updateRating, type Result } from './difficulty';
+import { elapsedMs, isLost, type GameState } from './game';
 import { specForLevel } from './progression';
 import type { KV } from './storage';
 
@@ -105,4 +106,15 @@ export function parseLevelParam(search: string): number | null {
   if (raw === null || !/^\d{1,3}$/.test(raw)) return null;
   const n = Number(raw);
   return n >= 1 ? n : null;
+}
+
+export function settle(p: Progress, level: number, prev: GameState, next: GameState, now = Date.now()): Progress {
+  const rated = tierOf(next.puzzle.size, next.puzzle.difficulty) >= 0;
+  const result = (won: boolean): Result => ({ won, mistakes: next.mistakes, hintsUsed: next.hintsUsed, powersUsed: next.powersUsed, timeMs: elapsedMs(next, now), size: next.puzzle.size });
+  if (next.won && !prev.won) {
+    const completed = recordCompletion(p, level, elapsedMs(next, now));
+    return rated && !next.continued ? recordResult(completed, result(true), now) : completed;
+  }
+  if (isLost(next) && !isLost(prev) && rated) return recordResult(p, result(false), now);
+  return p;
 }

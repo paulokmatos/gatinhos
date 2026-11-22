@@ -4,8 +4,8 @@ import { FIXED_LEVELS } from '../core/levels';
 import { prefetchLevel, requestLevel } from '../core/levelClient';
 import { COLOR_HEX, COLOR_NAMES, COLOR_SYMBOLS } from '../core/messages';
 import { DIFFICULTY_LABEL, specForLevel, specForTier } from '../core/progression';
-import { nextTier, tierOf } from '../core/difficulty';
-import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, recordCompletion, recordResult, saveProgress, setName, skipLevel, type Progress } from '../core/progress';
+import { nextTier } from '../core/difficulty';
+import { jumpTo, loadProgress, MAX_NAME, parseLevelParam, saveProgress, setName, settle, skipLevel, type Progress } from '../core/progress';
 import { load, save, type KV } from '../core/storage';
 import type { Puzzle } from '../core/types';
 import { setupUpdates } from './pwa';
@@ -36,6 +36,9 @@ const fmt = (ms: number) => {
   const s = Math.floor(ms / 1000);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
+
+const subtitle = (g: GameState) =>
+  `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${g.puzzle.size}×${g.puzzle.size} · ${fmt(elapsedMs(g))}`;
 
 const X_SVG = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="display:block"><path d="M6 6 L18 18 M18 6 L6 18" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round"/></svg>';
 const X_RED = X_SVG.replace('#FFFFFF', '#D93A3F');
@@ -94,7 +97,7 @@ function render(): void {
   $('tip').hidden = g.won;
 
   $('title').textContent = `Nível ${level}`;
-  $('sub').textContent = `${g.puzzle.difficulty ? DIFFICULTY_LABEL[g.puzzle.difficulty] : 'Fixa'} · ${n}×${n} · ${fmt(elapsedMs(g))}`;
+  $('sub').textContent = subtitle(g);
   ($('undo') as HTMLButtonElement).disabled = !canUndo(g);
   ($('redo') as HTMLButtonElement).disabled = !canRedo(g);
   ($('restart') as HTMLButtonElement).disabled = g.won;
@@ -163,18 +166,13 @@ function render(): void {
 const tierFor = (k: number) => nextTier(progress.rating, progress.recent, k, progress.lastPlayed, Date.now());
 
 function update(next: GameState): void {
-  const sized = tierOf(next.puzzle.size, next.puzzle.difficulty) >= 0; // nível fixo de reserva não entra na nota
-  const finished = (won: boolean) => ({ won, mistakes: next.mistakes, hintsUsed: next.hintsUsed, powersUsed: next.powersUsed, timeMs: elapsedMs(next), size: next.puzzle.size });
-  if (next.won && game && !game.won) {
-    progress = recordCompletion(progress, level, elapsedMs(next));
-    if (sized && !next.continued) progress = recordResult(progress, finished(true)); // quem já perdeu e continuou não conta de novo
+  const settled = game ? settle(progress, level, game, next) : progress;
+  if (settled !== progress) {
+    progress = settled;
     saveProgress(kv, progress);
-    prefetchLevel(level + 1, tierFor(level + 1)); // com a nota já atualizada
-  } else if (game && isLost(next) && !isLost(game) && sized) {
-    progress = recordResult(progress, finished(false));
-    saveProgress(kv, progress);
+    if (next.won) prefetchLevel(level + 1, tierFor(level + 1));
   }
-if (game && next.mistakes > game.mistakes) {
+  if (game && next.mistakes > game.mistakes) {
     if (isLost(next)) { breakIdx = attemptsLeft(next); window.setTimeout(() => { breakIdx = -1; if (game) render(); }, 1300); }
     else crack(attemptsLeft(next));
   }
@@ -337,7 +335,7 @@ document.addEventListener('click', (e) => {
 });
 
 setInterval(() => {
-  if (game && !game.won && !loading) $('sub').textContent = `${game.puzzle.difficulty ? DIFFICULTY_LABEL[game.puzzle.difficulty] : 'Fixa'} · ${game.puzzle.size}×${game.puzzle.size} · ${fmt(elapsedMs(game))}`;
+  if (game && !game.won && !loading) $('sub').textContent = subtitle(game);
 }, 1000);
 
 document.addEventListener('visibilitychange', () => {

@@ -1,5 +1,5 @@
 import { newGame, type GameState } from './game';
-import { countSolutions, solveFirst } from './solver';
+import { listSolutions } from './solver';
 import type { Mark, Puzzle } from './types';
 
 export interface Settings {
@@ -26,7 +26,6 @@ export interface Saved {
 }
 
 export const STORAGE_KEY = 'gatinhos:v1';
-export const DEFAULT_SETTINGS: Settings = { symbols: false };
 
 export interface KV {
   getItem(k: string): string | null;
@@ -101,9 +100,9 @@ export function load(kv: KV): Loaded | null {
     const s = JSON.parse(raw) as Saved;
     if (s?.version !== 1 || !Number.isInteger(s.level) || s.level < 1 || !validPuzzle(s.puzzle)) return null;
     // recalcula a solução a partir das cores; fase adulterada (sem solução única) é descartada
-    if (countSolutions(s.puzzle.regions, 2) !== 1) return null;
-    const solution = solveFirst(s.puzzle.regions);
-    if (!solution) return null;
+    const solutions = listSolutions(s.puzzle.regions, 2);
+    if (solutions.length !== 1) return null;
+    const solution = solutions[0];
     const puzzle: Puzzle = { size: s.puzzle.size, regions: s.puzzle.regions, solution, difficulty: s.puzzle.difficulty, givens: s.puzzle.givens };
     if (puzzle.difficulty === undefined) delete puzzle.difficulty;
     if (puzzle.givens === undefined) delete puzzle.givens;

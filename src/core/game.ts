@@ -67,8 +67,6 @@ export function newGame(puzzle: Puzzle, opts: { now?: number } = {}): GameState 
   };
 }
 
-const pos = (g: GameState, i: number) => ({ r: Math.floor(i / g.puzzle.size), c: i % g.puzzle.size });
-
 /**
  * Aplica mudanças. Gatinho é escrita do código (não é estado que o jogador altera): só as marcações
  * do jogador (X) entram no histórico, numa única entrada. Quem desfaz/refaz nunca mexe em gatinho.
@@ -238,7 +236,6 @@ export function applyHint(g: GameState): GameState {
   return next === g ? g : { ...next, hintsUsed: g.hintsUsed + 1 };
 }
 
-export const isWon = (g: GameState) => g.won;
 export const elapsedMs = (g: GameState, now = Date.now()) => (g.finishedAt ?? g.pausedAt ?? now) - g.startedAt;
 
 export const pause = (g: GameState, now = Date.now()): GameState => (g.won || g.pausedAt !== null ? g : { ...g, pausedAt: now });

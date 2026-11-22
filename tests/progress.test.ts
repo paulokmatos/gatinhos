@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { canReveal, newGame, restart, revealCat, tap, undo } from '../src/core/game';
+import { canReveal, continueAfterLoss, newGame, restart, revealCat, tap, undo, type GameState } from '../src/core/game';
 import { FIXED_LEVELS } from '../src/core/levels';
 import { generateLevel, givenChanceFor, pickGiven, SIZE_RANGE, specForLevel } from '../src/core/progression';
-import { defaultProgress, loadProgress, PROGRESS_KEY, recordCompletion, saveProgress } from '../src/core/progress';
+import { defaultProgress, loadProgress, PROGRESS_KEY, recordCompletion, saveProgress, settle } from '../src/core/progress';
 import { load, save, type KV } from '../src/core/storage';
 
 const memory = (): KV & { data: Map<string, string> } => {
@@ -223,5 +223,55 @@ describe('nota e histórico no progresso', () => {
     const p = jumpTo({ ...defaultProgress(), recent: [0, 0] }, 26);
     expect(p.rating).toBe(ratingForLevel(26));
     expect(p.recent).toEqual([]);
+  });
+});
+
+describe('fechar o nível (settle): conta vitória e derrota uma vez só', () => {
+  const rated = { ...FIXED_LEVELS[0], difficulty: 'facil' as const };
+  const n = rated.size;
+  const guess = (g: GameState, i: number) => tap(tap(g, i), i);
+  const winAll = (g: GameState) => rated.solution.reduce((s, c, r) => guess(s, r * n + c), g);
+  const loseAll = (g: GameState) => [0, 1, 2].reduce((s, r) => guess(s, r * n + ((rated.solution[r] + 2) % n)), g);
+  const finishWin = (g: GameState) => {
+    const cells = rated.solution.map((c, r) => r * n + c);
+    const before = cells.slice(0, -1).reduce((s, i) => guess(s, i), g);
+    return [before, guess(before, cells[cells.length - 1])] as const;
+  };
+
+  it('vitória: +1 concluído e a nota muda', () => {
+    const [prev, next] = finishWin(newGame(rated, { now: 0 }));
+    const p = settle(defaultProgress(), 3, prev, next, 1000);
+    expect(p.completed).toBe(1);
+    expect(p.maxLevel).toBe(4);
+    expect(p.recent).toHaveLength(1);
+    expect(p.lastPlayed).toBe(1000);
+  });
+  it('derrota: só a nota (desempenho 0), sem concluir', () => {
+    const lost = loseAll(newGame(rated));
+    const prev = { ...lost, mistakes: 2 };
+    const p = settle(defaultProgress(), 3, prev, lost);
+    expect(p.completed).toBe(0);
+    expect(p.recent).toEqual([0]);
+  });
+  it('perdeu, continuou e venceu: conclui, mas a nota não conta de novo', () => {
+    const [prev, next] = finishWin(continueAfterLoss(loseAll(newGame(rated))));
+    const p = settle(defaultProgress(), 3, prev, next);
+    expect(p.completed).toBe(1);
+    expect(p.recent).toEqual([]);
+  });
+  it('nível fixo de reserva conclui sem mexer na nota', () => {
+    const fixed = FIXED_LEVELS[0];
+    const cells = fixed.solution.map((c, r) => r * n + c);
+    const before = cells.slice(0, -1).reduce((s, i) => guess(s, i), newGame(fixed));
+    const p = settle(defaultProgress(), 1, before, guess(before, cells[cells.length - 1]));
+    expect(p.completed).toBe(1);
+    expect(p.recent).toEqual([]);
+  });
+  it('jogada comum ou estado já vencido: progresso intacto (mesmo objeto)', () => {
+    const p0 = defaultProgress();
+    const g = newGame(rated);
+    expect(settle(p0, 1, g, tap(g, 0))).toBe(p0);
+    const won = winAll(g);
+    expect(settle(p0, 1, won, won)).toBe(p0);
   });
 });
