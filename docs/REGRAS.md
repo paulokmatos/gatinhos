@@ -17,6 +17,7 @@
 | Gerador (seed, regiões, unicidade, erro tratado) | `tests/generator.test.ts` | CA06–CA09 |
 | Solver humano T1–T7, classificação, progressão 1–100 | `tests/human.test.ts` | CA10–CA12 |
 | Etapas/progressão, gatinho de brinde, poder, progresso, nome, `?nivel=` | `tests/progress.test.ts` | seção 2.6–2.9 |
+| Dificuldade adaptativa (desempenho, nota, onda, degraus) | `tests/difficulty.test.ts` | seção 2.8 |
 | Dicas (erro, passo mais fácil, desempate, 3 passos, mensagens) | `tests/hints.test.ts` | CA13–CA20 + "motivo → o que fazer" |
 | Persistência, manifest, offline (parte automática), solução fora do localStorage | `tests/m5.test.ts` | CA21–CA23 |
 | Vocabulário | `tests/glossary.test.ts` | termos proibidos e nomes das cores |
@@ -56,17 +57,19 @@ Rodar tudo: `npm test` (≈10 s). Typecheck: `npm run typecheck`. Build: `npm ru
 - **1 uso por nível** (sem estoque). Revela o gatinho da **cor com mais casas livres**; não gasta tentativa; recomeçar devolve o uso; depois de vencer, não funciona.
 
 ### 2.7 Gatinho de brinde
-- Só a partir do nível 21: 50% nos níveis 21–30; 60% nos 31–40, −15 pontos a cada 10 níveis, **0 a partir do 71**. Sorteio determinístico por nível. É o gatinho da **maior cor**. Contorno tracejado.
+- Só nos degraus altos (a partir do 6º da escala, 9×9+): chance de 60% que cai 10 pontos por degrau acima. Sorteio determinístico por (nível, degrau). É o gatinho da **maior cor**. Contorno tracejado.
 
-### 2.8 Progressão
-- Tamanho/dificuldade/seed dependem só do número do nível (igual em qualquer aparelho).
-- **1–30: etapas de 5 níveis**: 5×5, 6×6, 7×7 (Fácil), 8×8 (Médio), 9×9 e 10×10 (Difícil).
-- **Depois do 30**: 31–40 Difícil, 41+ Expert; quase tudo 10×10 (múltiplos de 5 são 9×9). Dificuldade **nunca diminui**.
-- Classificação: T1–T2 Fácil, T3–T4 Médio, T5–T6 Difícil, T7 Expert; nível que nem T7 resolve é descartado. Tabela de tamanhos: Fácil 5–7, Médio 7–8, Difícil 8–10, Expert 9–10.
-- A geração roda num Web Worker; se falhar, cai num nível fixo (a interface nunca trava). Ao abrir um nível, o próximo é pré-carregado em segundo plano **só se for 10×10** e **1 por vez** (poupa bateria); se o pré-carregamento falhar, o nível é gerado de novo ao chegar nele.
+### 2.8 Progressão adaptativa (`src/core/difficulty.ts`; testes em `tests/difficulty.test.ts`)
+- **Escala de degraus** (`TIERS`): 5×5, 6×6, 7×7 (Fácil), 8×8 (Médio), 8×8, 9×9, 10×10 (Difícil), 9×9, 10×10 (Expert). Os números são arbitrários e podem mudar (calibrar com dados; ver `docs/ESTRATEGIA-DIFICULDADE.md`).
+- O **número do nível** só conta níveis jogados. O degrau de cada nível vem da **nota do jogador** (`rating`, no `Progress`) + uma **onda** (confortável, confortável, médio, desafio, respiro) com elástico: 2 frustrações seguidas → mais fácil; 3 vitórias perfeitas seguidas → mais difícil; 3+ dias sem jogar → começa 1 degrau abaixo.
+- **Desempenho** do nível (0–1): perder = 0; vencer = 1 − 0,25/erro − 0,15/dica − 0,1/poder, −0,2 se passar de 2× o tempo de referência. Quem perdeu e escolheu "Continuar sem limite" não conta de novo ao vencer. Nível fixo de reserva (falha do gerador) não entra na nota.
+- Seed = (nível, degrau): igual em qualquer aparelho para o mesmo histórico. `?nivel=N` / "Ir para um nível" definem a nota pelo degrau que a curva antiga dava a esse nível.
+- Classificação: T1–T2 Fácil, T3–T4 Médio, T5–T6 Difícil, T7 Expert; nível que nem T7 resolve é descartado.
+- A geração roda num Web Worker; se falhar, cai num nível fixo (a interface nunca trava). O próximo nível é pré-carregado em segundo plano **só se for 10×10** e **1 por vez** (poupa bateria): ao abrir o nível e de novo ao vencer (com a nota atualizada); se o degrau mudou ou o pré-carregamento falhou, gera de novo ao chegar nele.
+- A curva antiga por número de nível (`specForLevel`) continua só para converter nível → degrau inicial.
 
 ### 2.9 Persistência e perfil (só no aparelho; sem conta/servidor)
-- `localStorage`: `gatinhos:v1` (partida em andamento) e `gatinhos:progress:v1` (nome, níveis concluídos, nível de retomada, melhores tempos).
+- `localStorage`: `gatinhos:v1` (partida em andamento) e `gatinhos:progress:v1` (nome, níveis concluídos, nível de retomada, melhores tempos, nota e desempenho recente).
 - A partida salva **não guarda a solução**; ela é recalculada das cores ao carregar (nível adulterado é descartado). Isso evita espiadas casuais; **não é segredo de verdade** (o jogo roda inteiro no aparelho).
 - Vazio/corrompido → padrão (nível 1). Falha ao gravar não derruba o app.
 - Começar em outro nível: `?nivel=N` (1–999) ou folha do nome → "Ir para um nível". O app passa a retomar desse nível.
